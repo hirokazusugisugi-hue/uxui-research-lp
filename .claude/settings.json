@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(clasp run:*)",
+      "Bash(curl -s -L -o /dev/null -w \"%{http_code}\" \"https://script.google.com/macros/s/AKfycbwMjyh-clvxR_d2TsZnxe3ZT3R60oGD7vPvkDsKioRFn-L1O-5sCgT4xIzrB0ED4ELB/exec\")",
+      "Bash(curl -s -L \"https://script.google.com/macros/s/AKfycbwMjyh-clvxR_d2TsZnxe3ZT3R60oGD7vPvkDsKioRFn-L1O-5sCgT4xIzrB0ED4ELB/exec\")",
+      "Bash(curl -s -L \"https://script.google.com/macros/s/AKfycbwBZ_XRInsGXOr9gG0VIs6_-AOqCAFtzm6sSifTZ3ZS_RvMzWIxAeqN58Je0rZ10ecS/exec\")",
+      "Bash(open \"https://script.google.com/macros/s/AKfycbwBZ_XRInsGXOr9gG0VIs6_-AOqCAFtzm6sSifTZ3ZS_RvMzWIxAeqN58Je0rZ10ecS/exec?action=setup\")",
+      "Bash(clasp version:*)",
+      "Bash(curl -s -X POST -H 'Content-Type: text/plain' -d '{\"type\":\"visit\",\"name\":\"テスト太郎\",\"furigana\":\"てすとたろう\",\"email\":\"hirokazusugisugi@gmail.com\",\"membership\":\"登録済み\",\"method\":\"venue\"}' https://script.google.com/macros/s/AKfycbwBZ_XRInsGXOr9gG0VIs6_-AOqCAFtzm6sSifTZ3ZS_RvMzWIxAeqN58Je0rZ10ecS/exec -w '\\\\nHTTP_CODE:%{http_code}\\\\nREDIRECT:%{redirect_url}')"
+    ]
+  }
+}

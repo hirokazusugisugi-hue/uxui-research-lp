@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UX/UI研究会 | 大阪府中小企業診断士協会</title>
+<meta name="description" content="大阪府中小企業診断士協会 UX/UI研究会の公式サイト。経営×デザイン、行動経済学×認知、AIを融合し、中小企業のUX/UI課題に取り組みます。">
+<link rel="canonical" href="https://ux-lab.jp/">
+<style>
+  
+:root {
+  --navy: #0A1628;
+  --deep: #0F2347;
+  --blue: #1E6FD9;
+  --sky: #38A3F8;
+  --ice: #C2E2FF;
+  --white: #FFFFFF;
+  --text: rgba(255,255,255,0.88);
+  --muted: rgba(255,255,255,0.55);
+  --radius: 16px;
+  --max-w: 1080px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 18px; scroll-behavior: smooth; }
+body {
+  font-family: 'メイリオ', Meiryo, 'Hiragino Sans', sans-serif;
+  color: var(--text);
+  background: var(--navy);
+  line-height: 1.9;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: var(--sky); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Layout ── */
+.wrap { max-width: var(--max-w); margin: 0 auto; padding: 0 36px; }
+section { padding: 100px 0; position: relative; }
+
+/* ── Typography ── */
+h1 { font-size: 2.8rem; font-weight: 700; line-height: 1.45; letter-spacing: 0.03em; color: var(--white); }
+h2 {
+  font-size: 1.8rem; font-weight: 700; margin-bottom: 20px; line-height: 1.4;
+  color: var(--white); position: relative; display: inline-block;
+}
+h2::after {
+  content: ''; display: block; width: 48px; height: 3px; margin-top: 12px;
+  background: linear-gradient(90deg, var(--sky), var(--blue));
+  border-radius: 2px;
+}
+.section-lead { color: var(--muted); font-size: 1.05rem; margin-bottom: 48px; max-width: 640px; }
+h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; color: var(--white); }
+
+/* ── Animations ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+.reveal {
+  opacity: 0; transform: translateY(40px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal-delay-1 { transition-delay: 0.12s; }
+.reveal-delay-2 { transition-delay: 0.24s; }
+.reveal-delay-3 { transition-delay: 0.36s; }
+
+/* ── Header ── */
+header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(10,22,40,0.7);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(56,163,248,0.08);
+  transition: background 0.3s;
+}
+.hd-inner {
+  max-width: var(--max-w); margin: 0 auto; padding: 0 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 68px;
+}
+.logo { font-weight: 700; font-size: 1.15rem; color: var(--white); letter-spacing: 0.06em; }
+.logo span {
+  background: linear-gradient(135deg, var(--sky), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+nav { display: flex; gap: 32px; align-items: center; }
+nav a {
+  font-size: 0.85rem; color: rgba(255,255,255,0.6); font-weight: 700;
+  transition: color 0.3s; position: relative;
+}
+nav a::after {
+  content: ''; position: absolute; bottom: -4px; left: 0; width: 0; height: 2px;
+  background: var(--sky); transition: width 0.3s;
+}
+nav a:hover { color: var(--white); text-decoration: none; }
+nav a:hover::after { width: 100%; }
+.hamburger { display: none; background: none; border: none; cursor: pointer; padding: 4px; }
+.hamburger svg { width: 28px; height: 28px; stroke: var(--white); }
+
+/* ── Hero ── */
+.hero {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: var(--navy); text-align: center; position: relative; overflow: hidden;
+}
+.hero-bg {
+  position: absolute; inset: 0; overflow: hidden;
+}
+.hero-orb {
+  position: absolute; border-radius: 50%; filter: blur(80px);
+}
+.hero-orb--1 {
+  width: 600px; height: 600px; top: -10%; right: -10%;
+  background: radial-gradient(circle, rgba(30,111,217,0.25), transparent 70%);
+  animation: float 8s ease-in-out infinite;
+}
+.hero-orb--2 {
+  width: 400px; height: 400px; bottom: -5%; left: -5%;
+  background: radial-gradient(circle, rgba(56,163,248,0.18), transparent 70%);
+  animation: float 10s ease-in-out infinite 2s;
+}
+.hero-orb--3 {
+  width: 300px; height: 300px; top: 40%; left: 50%;
+  background: radial-gradient(circle, rgba(30,111,217,0.12), transparent 70%);
+  animation: float 12s ease-in-out infinite 4s;
+}
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(56,163,248,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,163,248,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+.hero .wrap { position: relative; z-index: 1; }
+.hero-label {
+  display: inline-block; padding: 8px 20px; border-radius: 999px; font-size: 0.85rem;
+  font-weight: 700; color: var(--sky); margin-bottom: 28px;
+  background: rgba(56,163,248,0.08); border: 1px solid rgba(56,163,248,0.2);
+  animation: fadeIn 1s 0.2s both;
+}
+.hero h1 { max-width: 760px; margin: 0 auto 24px; animation: fadeUp 1s 0.4s both; }
+.hero-sub {
+  font-size: 1.15rem; color: var(--muted); margin-bottom: 48px;
+  animation: fadeUp 1s 0.6s both;
+}
+.hero-badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; animation: fadeUp 1s 0.8s both; }
+.stag {
+  display: inline-block; padding: 8px 20px; border-radius: 999px;
+  font-size: 0.82rem; font-weight: 700; line-height: 1.5;
+  color: var(--sky); background: rgba(56,163,248,0.08);
+  border: 1px solid rgba(56,163,248,0.18);
+  transition: all 0.3s;
+}
+.stag:hover { background: rgba(56,163,248,0.15); border-color: rgba(56,163,248,0.35); transform: translateY(-2px); }
+.hero-scroll {
+  position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
+  animation: pulse 2s ease-in-out infinite;
+}
+.hero-scroll svg { width: 24px; height: 24px; stroke: var(--muted); }
+
+/* ── Cards ── */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.card {
+  background: rgba(15,35,71,0.6);
+  border: 1px solid rgba(56,163,248,0.1);
+  border-radius: var(--radius); padding: 36px 30px;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative; overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+.card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(56,163,248,0.05), transparent);
+  opacity: 0; transition: opacity 0.4s;
+}
+.card:hover {
+  border-color: rgba(56,163,248,0.25);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(56,163,248,0.08);
+}
+.card:hover::before { opacity: 1; }
+.card-num {
+  font-size: 4rem; font-weight: 700; line-height: 1; margin-bottom: 16px;
+  background: linear-gradient(180deg, rgba(56,163,248,0.25), rgba(56,163,248,0.05));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; position: relative; z-index: 1;
+  font-family: 'DM Sans', 'メイリオ', sans-serif; letter-spacing: -0.03em;
+}
+.card h3 { position: relative; z-index: 1; }
+.card p { font-size: 0.95rem; color: var(--muted); line-height: 1.9; position: relative; z-index: 1; }
+
+/* ── Lens cards ── */
+.lens-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.lens {
+  border-radius: var(--radius); padding: 40px 30px;
+  position: relative; overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  border: 1px solid rgba(56,163,248,0.15);
+}
+.lens:hover { transform: translateY(-6px); box-shadow: 0 20px 60px rgba(0,0,0,0.25); }
+.lens h3 { color: var(--white); font-size: 1.2rem; }
+.lens p { font-size: 0.95rem; color: rgba(255,255,255,0.8); line-height: 1.9; }
+.lens-label {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--sky); margin-bottom: 12px;
+}
+.lens-num {
+  position: absolute; top: 16px; right: 24px; font-size: 4.5rem; font-weight: 700;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; line-height: 1;
+}
+.lens--macro { background: linear-gradient(160deg, #102E5E, #1A4A8A); }
+.lens--micro { background: linear-gradient(160deg, #0C2854, #155FA0); }
+.lens--enabler { background: linear-gradient(160deg, #0E2248, #1565C0); }
+
+/* ── Details / Accordion ── */
+details {
+  background: rgba(15,35,71,0.5);
+  border: 1px solid rgba(56,163,248,0.1);
+  border-radius: var(--radius);
+  margin-bottom: 14px; overflow: hidden;
+  transition: all 0.3s;
+  backdrop-filter: blur(4px);
+}
+details:hover { border-color: rgba(56,163,248,0.22); }
+details[open] { border-color: rgba(56,163,248,0.3); background: rgba(15,35,71,0.7); }
+summary {
+  padding: 22px 28px; cursor: pointer; font-weight: 700;
+  list-style: none; display: flex; align-items: center; justify-content: space-between;
+  font-size: 1.05rem; color: var(--white); transition: color 0.3s;
+}
+summary::-webkit-details-marker { display: none; }
+summary::after {
+  content: ''; width: 12px; height: 12px; flex-shrink: 0; margin-left: 20px;
+  border-right: 2px solid var(--sky); border-bottom: 2px solid var(--sky);
+  transform: rotate(45deg); transition: transform 0.3s;
+}
+details[open] summary::after { transform: rotate(-135deg); }
+.detail-body { padding: 0 28px 28px; font-size: 0.98rem; color: var(--muted); line-height: 2; }
+.detail-body ul { padding-left: 22px; margin-top: 12px; }
+.detail-body li { margin-bottom: 10px; }
+.detail-body li::marker { color: var(--sky); }
+.detail-body strong { color: var(--white); }
+
+/* ── Buttons ── */
+.bp, .bo {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 16px 40px; border-radius: var(--radius); font-weight: 700;
+  font-size: 1rem; transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1); cursor: pointer;
+  border: 2px solid transparent; text-decoration: none;
+  font-family: 'メイリオ', Meiryo, sans-serif;
+}
+.bp {
+  background: linear-gradient(135deg, var(--blue), var(--sky));
+  background-size: 200% 200%; animation: gradientShift 4s ease infinite;
+  color: var(--white); border-color: transparent;
+  box-shadow: 0 4px 24px rgba(30,111,217,0.35);
+}
+.bp:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 36px rgba(30,111,217,0.5);
+  text-decoration: none;
+}
+.bo {
+  background: rgba(56,163,248,0.06);
+  color: var(--sky); border-color: rgba(56,163,248,0.35);
+}
+.bo:hover {
+  background: rgba(56,163,248,0.12); border-color: var(--sky);
+  transform: translateY(-3px); text-decoration: none;
+}
+.bo--em { color: #64D8F7; border-color: rgba(100,216,247,0.35); }
+.bo--em:hover { background: rgba(100,216,247,0.1); border-color: #64D8F7; }
+.bo--line { color: #06C755; border-color: rgba(6,199,85,0.35); }
+.bo--line:hover { background: rgba(6,199,85,0.08); border-color: #06C755; }
+
+/* ── Choice buttons ── */
+.choice-buttons {
+  display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 48px;
+  max-width: 400px; margin-left: auto; margin-right: auto;
+}
+.choice-btn, .choice-link {
+  display: block; width: 100%; padding: 20px 44px; border-radius: var(--radius); font-weight: 700;
+  font-size: 1.05rem; cursor: pointer; transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: 'メイリオ', Meiryo, sans-serif; text-align: center;
+  border: 2px solid rgba(56,163,248,0.3); background: rgba(15,35,71,0.5);
+  color: var(--sky); backdrop-filter: blur(8px); text-decoration: none;
+}
+.choice-btn:hover {
+  border-color: var(--sky); background: rgba(56,163,248,0.1);
+  transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+}
+.choice-btn.active {
+  background: linear-gradient(135deg, var(--blue), var(--sky));
+  color: var(--white); border-color: transparent;
+  box-shadow: 0 4px 24px rgba(30,111,217,0.35);
+}
+.choice-btn.active:hover { box-shadow: 0 8px 36px rgba(30,111,217,0.5); }
+
+/* ── Form ── */
+.form-card {
+  background: rgba(15,35,71,0.6); border: 1px solid rgba(56,163,248,0.15);
+  border-radius: var(--radius); padding: 48px 40px; max-width: 560px;
+  margin: 0 auto; backdrop-filter: blur(8px);
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 0.6s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease, padding 0.5s ease;
+  padding-top: 0; padding-bottom: 0;
+}
+.form-card.open {
+  max-height: 1200px; opacity: 1; padding: 48px 40px;
+}
+.form-card h3 { font-size: 1.4rem; margin-bottom: 8px; text-align: center; }
+.form-note {
+  text-align: center; color: var(--muted); font-size: 0.92rem; margin-bottom: 36px; line-height: 1.8;
+}
+.form-note strong { color: var(--sky); font-weight: 700; }
+.form-group { margin-bottom: 24px; }
+.form-group label {
+  display: block; font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.7);
+  margin-bottom: 8px;
+}
+.form-group input {
+  width: 100%; padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(56,163,248,0.2);
+  background: rgba(10,22,40,0.8); color: var(--white); font-size: 1rem;
+  font-family: 'メイリオ', Meiryo, sans-serif; transition: border-color 0.3s;
+  outline: none;
+}
+.form-group input::placeholder { color: rgba(255,255,255,0.25); }
+.form-group input:focus, .form-group textarea:focus { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(56,163,248,0.12); }
+.form-group textarea::placeholder { color: rgba(255,255,255,0.25); }
+
+/* ── Radio ── */
+.radio-group { display: flex; flex-direction: column; gap: 12px; }
+.radio-label {
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(56,163,248,0.15);
+  background: rgba(10,22,40,0.6); transition: all 0.3s; font-size: 0.95rem;
+  color: var(--text);
+}
+.radio-label:hover { border-color: rgba(56,163,248,0.3); background: rgba(56,163,248,0.05); }
+.radio-label input[type="radio"] { display: none; }
+.radio-dot {
+  width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid rgba(56,163,248,0.35); position: relative; transition: all 0.3s;
+}
+.radio-label input[type="radio"]:checked ~ .radio-dot {
+  border-color: var(--sky);
+}
+.radio-label input[type="radio"]:checked ~ .radio-dot::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--sky);
+}
+.radio-label input[type="radio"]:checked ~ span { color: var(--white); }
+
+.form-submit {
+  width: 100%; padding: 16px; border-radius: var(--radius); border: none; cursor: pointer;
+  font-size: 1.05rem; font-weight: 700; font-family: 'メイリオ', Meiryo, sans-serif;
+  background: linear-gradient(135deg, var(--blue), var(--sky));
+  background-size: 200% 200%; animation: gradientShift 4s ease infinite;
+  color: var(--white); box-shadow: 0 4px 24px rgba(30,111,217,0.35);
+  transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.form-submit:hover { transform: translateY(-2px); box-shadow: 0 8px 36px rgba(30,111,217,0.5); }
+.form-success {
+  display: none; text-align: center; padding: 40px 20px;
+}
+.form-success h3 { color: var(--sky); font-size: 1.3rem; margin-bottom: 12px; }
+.form-success p { color: var(--muted); }
+
+/* ── CTA ── */
+.cta-section {
+  text-align: center; position: relative; overflow: hidden;
+  background: linear-gradient(160deg, #0D2F5E, #1565C0, #0D2F5E);
+  background-size: 300% 300%; animation: gradientShift 10s ease infinite;
+}
+.cta-section::before {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 50%, rgba(56,163,248,0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(30,111,217,0.1) 0%, transparent 50%);
+}
+.cta-section .wrap { position: relative; z-index: 1; }
+.cta-section h2::after { margin-left: auto; margin-right: auto; }
+.cta-row { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+
+/* ── Footer ── */
+footer {
+  text-align: center; padding: 52px 36px;
+  font-size: 0.82rem; color: rgba(255,255,255,0.3);
+  border-top: 1px solid rgba(56,163,248,0.08);
+  background: var(--navy);
+}
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  html { font-size: 16px; }
+  h1 { font-size: 1.9rem; }
+  h2 { font-size: 1.5rem; }
+  .cards, .lens-cards { grid-template-columns: 1fr; }
+  .hero { min-height: auto; padding: 140px 0 80px; }
+  section { padding: 64px 0; }
+  .wrap { padding: 0 24px; }
+  .hd-inner { padding: 0 24px; }
+  nav { display: none; }
+  nav.open {
+    display: flex; flex-direction: column; position: absolute;
+    top: 68px; left: 0; right: 0;
+    background: rgba(10,22,40,0.96); backdrop-filter: blur(20px);
+    padding: 32px; border-bottom: 1px solid rgba(56,163,248,0.1); gap: 22px;
+  }
+  .hamburger { display: block; }
+  .cta-row { flex-direction: column; align-items: center; }
+  .bp, .bo { width: 100%; max-width: 360px; }
+  .hero-scroll { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="hd-inner">
+    <div class="logo"><span>UX/UI</span> 研究会</div>
+    <button class="hamburger" aria-label="メニュー" onclick="document.querySelector('nav').classList.toggle('open')">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <nav>
+      <a href="#uxui">UX/UIとは</a>
+      <a href="#role">中小企業での役割</a>
+      <a href="#approach">研究会の特徴</a>
+      <a href="#research">研究テーマ</a>
+      <a href="#activities">活動実績</a>
+      <a href="#contact">お問い合わせ</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-bg">
+    <div class="hero-grid"></div>
+    <div class="hero-orb hero-orb--1"></div>
+    <div class="hero-orb hero-orb--2"></div>
+    <div class="hero-orb hero-orb--3"></div>
+  </div>
+  <div class="wrap">
+    <div class="hero-label">大阪府中小企業診断士協会</div>
+    <h1>UX/UIがわかる診断士は、<br>まだ少ない。<br>だから、価値がある。</h1>
+    <p class="hero-sub">経営とデザインの交差点から、中小企業の成長を支える。</p>
+  </div>
+  <div class="hero-scroll">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+  </div>
+</section>
+
+<!-- UX/UIとは何か -->
+<section id="uxui">
+  <div class="wrap">
+    <div class="reveal">
+      <h2>UX/UIとは何か</h2>
+      <p class="section-lead">ユーザー体験とインターフェースの本質を、学術的定義から紐解く。</p>
+    </div>
+    <div class="cards">
+      <div class="card reveal reveal-delay-1">
+        <div class="card-num">01</div>
+        <h3>UX（ユーザー体験）</h3>
+        <p>ユーザーが製品やサービスを利用する前・中・後を通じて得る知覚と反応の総体。ISO 9241-210では「利用の結果として生じる、ユーザーの知覚と反応」と定義されています。</p>
+      </div>
+      <div class="card reveal reveal-delay-2">
+        <div class="card-num">02</div>
+        <h3>UI（ユーザーインターフェース）</h3>
+        <p>ユーザーとシステムが情報をやりとりする接点。画面デザインだけでなく、ボタンの配置、文言、レスポンス速度など、すべてのインタラクション要素を含みます。</p>
+      </div>
+      <div class="card reveal reveal-delay-3">
+        <div class="card-num">03</div>
+        <h3>UXとUIの関係</h3>
+        <p>UIはUXを構成する重要な要素の一つです。優れたUIは良いUXの必要条件ですが、十分条件ではありません。ビジネスモデル、サービス設計、顧客対応すべてがUXに影響します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 中小企業におけるUX/UIの役割 -->
+<section id="role">
+  <div class="wrap">
+    <div class="reveal">
+      <h2>中小企業におけるUX/UIの役割</h2>
+      <p class="section-lead">小さな工夫で大きな成果を。UX/UIは中小企業にこそ効く。</p>
+    </div>
+    <div class="cards">
+      <div class="card reveal reveal-delay-1">
+        <div class="card-num">01</div>
+        <h3>少ない資源で大きな成果</h3>
+        <p>大規模な投資がなくても、顧客接点のUX/UIを改善するだけで、コンバージョン率や顧客満足度を大きく向上できます。小さな工夫が大きな差を生む領域です。</p>
+      </div>
+      <div class="card reveal reveal-delay-2">
+        <div class="card-num">02</div>
+        <h3>顧客志向の実践</h3>
+        <p>UX/UIの視点は、顧客の声を「仕組み」に落とし込む技術です。顧客理解を深め、経営判断に直結するインサイトを得るための実践的フレームワークを提供します。</p>
+      </div>
+      <div class="card reveal reveal-delay-3">
+        <div class="card-num">03</div>
+        <h3>診断士の新しい武器</h3>
+        <p>財務・戦略だけでなく、UX/UIの知見を持つことで、デジタル時代の経営支援において差別化された提案が可能になります。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 研究会の特徴 -->
+<section id="approach">
+  <div class="wrap">
+    <div class="reveal">
+      <h2>研究会の特徴 ― 3つのレンズ</h2>
+      <p class="section-lead">マクロとミクロの解像度を切り替え、AIをイネーブラーとして融合する多角的アプローチ。</p>
+    </div>
+    <div class="lens-cards">
+      <div class="lens lens--macro reveal reveal-delay-1">
+        <div class="lens-num">01</div>
+        <div class="lens-label">Macro</div>
+        <h3>経営 × デザイン</h3>
+        <p>経営戦略とデザイン思考を統合し、事業全体の顧客体験を設計。サービスデザインやビジネスモデルの視点からUX/UIを捉えます。</p>
+      </div>
+      <div class="lens lens--micro reveal reveal-delay-2">
+        <div class="lens-num">02</div>
+        <div class="lens-label">Micro</div>
+        <h3>行動経済学 × 認知・ゲーミフィケーション</h3>
+        <p>ナッジ理論や認知バイアス、ゲーミフィケーションを活用し、ユーザー行動を科学的に理解。ミクロな接点の改善に活かします。</p>
+      </div>
+      <div class="lens lens--enabler reveal reveal-delay-3">
+        <div class="lens-num">03</div>
+        <div class="lens-label">Enabler</div>
+        <h3>AI</h3>
+        <p>AIは研究対象であると同時に、診断士の提案力を短期間で効率的に高めるツール。生成AIを活用したプロトタイピングやリサーチ手法を探究します。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 研究テーマ -->
+<section id="research">
+  <div class="wrap">
+    <div class="reveal">
+      <h2>研究テーマ</h2>
+      <p class="section-lead">実践と学術の両輪で、中小企業のUX/UI課題に取り組む。</p>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <details>
+        <summary>中小企業のデジタル接点における UX/UI 改善フレームワーク</summary>
+        <div class="detail-body">
+          <p>Webサイト、アプリ、ECサイトなど、中小企業が持つデジタル接点のUX/UIを体系的に評価・改善するためのフレームワークを構築します。</p>
+          <ul>
+            <li>ヒューリスティック評価の中小企業向けカスタマイズ</li>
+            <li>低コストで実施可能なユーザビリティテスト手法</li>
+            <li>改善優先度の判定基準策定</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <details>
+        <summary>行動経済学に基づくナッジデザインの実践的応用</summary>
+        <div class="detail-body">
+          <p>ナッジ理論や認知バイアスの知見を、中小企業のサービスデザインに実装するための方法論を研究します。</p>
+          <ul>
+            <li>デフォルト設計とフレーミング効果の活用</li>
+            <li>選択アーキテクチャによるコンバージョン改善</li>
+            <li>倫理的なナッジデザインのガイドライン策定</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+    <div class="reveal reveal-delay-2">
+      <details>
+        <summary>生成AIを活用したUX/UIデザインプロセスの効率化</summary>
+        <div class="detail-body">
+          <p>生成AIをUX/UIデザインの各工程に統合し、中小企業診断士がクライアントへの提案を迅速化・高度化する手法を開発します。</p>
+          <ul>
+            <li>AIによるペルソナ・ジャーニーマップ生成</li>
+            <li>プロトタイプの自動生成と評価</li>
+            <li>UXライティングへのAI活用</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+    <div class="reveal reveal-delay-3">
+      <details>
+        <summary>ゲーミフィケーションによる顧客エンゲージメント向上</summary>
+        <div class="detail-body">
+          <p>ゲームデザインの要素を非ゲーム領域に応用し、中小企業の顧客エンゲージメントとリテンションを高める手法を探究します。</p>
+          <ul>
+            <li>ポイント・バッジ・リーダーボードの効果的な設計</li>
+            <li>内発的動機づけを促すメカニクス</li>
+            <li>中小企業の予算規模で実装可能なゲーミフィケーション施策</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- 活動実績 -->
+<section id="activities">
+  <div class="wrap">
+    <div class="reveal">
+      <h2>活動実績</h2>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <details>
+        <summary>2025年度の活動</summary>
+        <div class="detail-body">
+          <ul>
+            <li><strong>2025年5月</strong> — UX/UI研究会 設立</li>
+            <li><strong>2025年度</strong> — 新歓フェスタ出展予定</li>
+          </ul>
+          <p style="margin-top:12px;">定期的な勉強会・研究発表を実施し、会員間の知見共有と実践力の向上を図ります。</p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- 参考資料 -->
+<section>
+  <div class="wrap">
+    <div class="reveal">
+      <h2>参考資料</h2>
+    </div>
+    <div class="reveal reveal-delay-1">
+      <details>
+        <summary>参考文献・リソース</summary>
+        <div class="detail-body">
+          <ul>
+            <li>ISO 9241-210:2019 — 人間中心設計プロセス</li>
+            <li>D. Norman『誰のためのデザイン?』</li>
+            <li>R. Thaler & C. Sunstein『Nudge』</li>
+            <li>J. Schell『The Art of Game Design』</li>
+            <li>S. Krug『Don't Make Me Think』</li>
+          </ul>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ご案内 -->
+<section id="contact">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center; margin-bottom:48px;">
+      <h2>ご興味をお持ちの方へ</h2>
+      <p class="section-lead" style="max-width:520px; margin-left:auto; margin-right:auto;">まずはお気軽にお問い合わせください。</p>
+    </div>
+
+    <!-- 選択ボタン（縦並び） -->
+    <div class="choice-buttons reveal reveal-delay-1">
+      <button class="choice-btn" data-type="visit" onclick="toggleForm('visit')">見学を希望する</button>
+      <a href="https://forms.gle/nEvTAR7tVExY12DHA" class="choice-link" target="_blank" rel="noopener">入会を希望する</a>
+      <button class="choice-btn" data-type="contact" onclick="toggleForm('contact')">お問い合わせ</button>
+    </div>
+
+    <!-- 見学フォーム -->
+    <div class="form-card" id="visitForm">
+      <div id="visitContent">
+        <h3>見学申込</h3>
+        <p class="form-note">
+          基本、<strong>1回参加</strong>となります。<br>
+          毎月第2水曜日 19:30〜21:00（変更の場合あり）<br>
+          会場: ナレッジサロン（グランフロント大阪 北館7F）<br>
+          詳細はメールにてお送りいたします。
+        </p>
+        <form onsubmit="submitForm(event, 'visit')">
+          <div class="form-group">
+            <label for="visit-name">お名前</label>
+            <input type="text" id="visit-name" placeholder="例: 山田 太郎" required>
+          </div>
+          <div class="form-group">
+            <label for="visit-furigana">ふりがな</label>
+            <input type="text" id="visit-furigana" placeholder="例: やまだ たろう" required>
+          </div>
+          <div class="form-group">
+            <label for="visit-email">メールアドレス</label>
+            <input type="email" id="visit-email" placeholder="例: taro@example.com" required>
+          </div>
+          <div class="form-group">
+            <label>大阪府中小企業診断士協会</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="visit-membership" value="registered" required>
+                <div class="radio-dot"></div>
+                <span>登録済み</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="visit-membership" value="planned">
+                <div class="radio-dot"></div>
+                <span>登録予定</span>
+              </label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>参加方法</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="visit-method" value="venue" required>
+                <div class="radio-dot"></div>
+                <span>会場参加</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="visit-method" value="zoom">
+                <div class="radio-dot"></div>
+                <span>Zoom参加</span>
+              </label>
+            </div>
+          </div>
+          <button type="submit" class="form-submit">見学を申し込む</button>
+        </form>
+      </div>
+      <div class="form-success" id="visitSuccess">
+        <h3>登録が完了しました</h3>
+        <p>会場情報をメールにてお送りいたしました。<br>Zoom参加の方には、開催日前に別途URLをお送りいたします。</p>
+      </div>
+    </div>
+
+    <!-- お問い合わせフォーム -->
+    <div class="form-card" id="contactForm">
+      <div id="contactContent">
+        <h3>お問い合わせ</h3>
+        <p class="form-note">
+          お気軽にお問い合わせください。
+        </p>
+        <form onsubmit="submitForm(event, 'contact')">
+          <div class="form-group">
+            <label for="contact-name">お名前</label>
+            <input type="text" id="contact-name" placeholder="例: 山田 太郎" required>
+          </div>
+          <div class="form-group">
+            <label for="contact-furigana">ふりがな</label>
+            <input type="text" id="contact-furigana" placeholder="例: やまだ たろう" required>
+          </div>
+          <div class="form-group">
+            <label for="contact-email">メールアドレス</label>
+            <input type="email" id="contact-email" placeholder="例: taro@example.com" required>
+          </div>
+          <div class="form-group">
+            <label for="contact-message">お問い合わせ内容</label>
+            <textarea id="contact-message" placeholder="お問い合わせ内容をご記入ください" required style="
+              width:100%; padding:14px 18px; border-radius:10px; border:1px solid rgba(56,163,248,0.2);
+              background:rgba(10,22,40,0.8); color:var(--white); font-size:1rem;
+              font-family:'メイリオ',Meiryo,sans-serif; outline:none; resize:vertical;
+              min-height:120px; line-height:1.8; transition:border-color 0.3s;
+            "></textarea>
+          </div>
+          <button type="submit" class="form-submit">送信する</button>
+        </form>
+      </div>
+      <div class="form-success" id="contactSuccess">
+        <h3>お問い合わせありがとうございます</h3>
+        <p>ご入力いただいたメールアドレスに<br>ご返信いたします。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="wrap">
+    <p>&copy; 2025 UX/UI研究会 — 大阪府中小企業診断士協会</p>
+  </div>
+</footer>
+
+<script>
+// ── Scroll reveal ──
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ── Nav link close ──
+document.querySelectorAll('nav a').forEach(a => {
+  a.addEventListener('click', () => document.querySelector('nav').classList.remove('open'));
+});
+
+// ★ デプロイ後のウェブアプリURLをここに貼り付けてください
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyvoW4mRDwyultiujQNmcPNNjKrm739-86Jr8l6N159b9D667OXEb-yUK-3cNsOPKhu/exec';
+
+// ── Form toggle ──
+function toggleForm(type) {
+  const cards = { visit: 'visitForm', contact: 'contactForm' };
+  const btns = document.querySelectorAll('.choice-btn');
+  btns.forEach(b => b.classList.remove('active'));
+
+  Object.keys(cards).forEach(key => {
+    const el = document.getElementById(cards[key]);
+    if (key === type) {
+      const isOpen = el.classList.contains('open');
+      el.classList.toggle('open');
+      if (!isOpen) {
+        const btn = document.querySelector('[data-type="' + type + '"]');
+        if (btn) btn.classList.add('active');
+      }
+    } else {
+      el.classList.remove('open');
+    }
+  });
+}
+
+function submitForm(e, type) {
+  e.preventDefault();
+  const btn = e.target.querySelector('.form-submit');
+  const originalText = btn.textContent;
+  btn.textContent = '送信中...';
+  btn.disabled = true;
+
+  let payload = {};
+
+  if (type === 'visit') {
+    payload = {
+      type: 'visit',
+      name: document.getElementById('visit-name').value,
+      furigana: document.getElementById('visit-furigana').value,
+      email: document.getElementById('visit-email').value,
+      membership: document.querySelector('input[name="visit-membership"]:checked')?.value || '',
+      method: document.querySelector('input[name="visit-method"]:checked')?.value || ''
+    };
+  } else if (type === 'contact') {
+    payload = {
+      type: 'contact',
+      name: document.getElementById('contact-name').value,
+      furigana: document.getElementById('contact-furigana').value,
+      email: document.getElementById('contact-email').value,
+      message: document.getElementById('contact-message').value
+    };
+  }
+
+  if (!GAS_URL) {
+    // GAS未設定の場合はそのまま完了表示
+    document.getElementById(type + 'Content').style.display = 'none';
+    document.getElementById(type + 'Success').style.display = 'block';
+    return;
+  }
+
+  fetch(GAS_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(payload)
+  })
+  .then(() => {
+    document.getElementById(type + 'Content').style.display = 'none';
+    document.getElementById(type + 'Success').style.display = 'block';
+  })
+  .catch(() => {
+    document.getElementById(type + 'Content').style.display = 'none';
+    document.getElementById(type + 'Success').style.display = 'block';
+  });
+}
+
+// ── Header scroll effect ──
+let lastScroll = 0;
+window.addEventListener('scroll', () => {
+  const header = document.querySelector('header');
+  const y = window.scrollY;
+  if (y > 100) {
+    header.style.background = 'rgba(10,22,40,0.92)';
+  } else {
+    header.style.background = 'rgba(10,22,40,0.7)';
+  }
+  lastScroll = y;
+}, { passive: true });
+</script>
+</body>
+</html>
