@@ -14,7 +14,9 @@
 
 ### 1. 起動
 
-マイク(音声認識)は **HTTPS または localhost** でのみ動作します。`index.html` をダブルクリック(file://)で開くとマイクは使えません(デモ入力は可)。
+**Web版(推奨)**: main へのマージ後、https://ux-lab.jp/meeting-support/ を Chrome で開くだけで使えます(GitHub Pages で配信。反映まで1〜2分)。
+
+ローカルで使う場合、マイク(音声認識)は **HTTPS または localhost** でのみ動作します。`index.html` をダブルクリック(file://)で開くとマイクは使えません(デモ入力は可)。
 
 ```bash
 # このフォルダで
@@ -22,7 +24,7 @@ python3 -m http.server 8000
 # → http://localhost:8000 を Chrome で開く
 ```
 
-公開する場合は GitHub Pages 等の静的ホスティングに置くだけで動きます(このリポジトリなら `docs/meeting-support/` にコピーすれば既存の Pages で配信されます)。
+原本はこの `meeting-support/index.html` です。公開版は `docs/meeting-support/index.html` に同一内容を配置しており、原本を更新したら同じ場所にコピーしてください。
 
 ### 2. 文字起こし
 

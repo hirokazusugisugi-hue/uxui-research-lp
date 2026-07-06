@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meeting Support — 会議サポートツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --ac:#4F46E5; --sky:#0EA5E9; --vio:#7C3AED; --em:#059669;
+  --ink:#0F172A; --sf:#FAFBFD; --line:#E2E8F0; --mut:#64748B;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:'Noto Sans JP','DM Sans',sans-serif;
+  background:var(--ink); color:var(--sf); font-size:15px;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+button{font-family:inherit; cursor:pointer; border:none; border-radius:8px; font-size:13px}
+input,select,textarea{font-family:inherit; font-size:13px}
+
+/* ===== Header ===== */
+header{
+  display:flex; align-items:center; gap:10px; padding:8px 14px;
+  background:#1E293B; border-bottom:1px solid #334155; flex-wrap:wrap; z-index:20;
+}
+header h1{font-size:15px; font-weight:700; letter-spacing:.02em; margin-right:4px}
+header h1 span{color:#A5B4FC; font-family:'DM Sans'}
+.hbtn{background:#334155; color:var(--sf); padding:7px 12px}
+.hbtn:hover{background:#475569}
+.hbtn.on{background:var(--ac)}
+#micBtn.rec{background:#DC2626; animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.65}}
+#modeSel{background:#334155; color:var(--sf); border:none; border-radius:8px; padding:7px 8px}
+.spacer{flex:1}
+#stat{font-size:12px; color:var(--mut)}
+
+/* ===== Layout ===== */
+#main{flex:1; display:flex; min-height:0}
+#drawer{
+  width:300px; background:#1E293B; border-right:1px solid #334155;
+  display:flex; flex-direction:column; transition:margin .25s;
+}
+#drawer.closed{margin-left:-300px}
+#drawer .dhead{padding:10px 12px; border-bottom:1px solid #334155; display:flex; gap:6px; align-items:center; flex-wrap:wrap}
+#drawer .dhead b{font-size:13px; flex:1 0 100%}
+.mini{background:#334155; color:var(--sf); padding:5px 9px; font-size:12px}
+.mini:hover{background:#475569}
+#matList{flex:1; overflow-y:auto; padding:8px}
+.mat{display:flex; gap:8px; padding:7px; border-radius:10px; margin-bottom:6px; background:#0f172a66; align-items:flex-start}
+.mat img{width:64px; height:48px; object-fit:cover; border-radius:6px; background:#334155; cursor:pointer; flex-shrink:0}
+.mat .mi{flex:1; min-width:0}
+.mat .mn{font-size:11px; color:#CBD5E1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.mat input{width:100%; background:#0F172A; border:1px solid #334155; color:var(--sf); border-radius:6px; padding:4px 6px; font-size:11px; margin-top:4px}
+.mat .mb{display:flex; gap:4px; margin-top:4px}
+.mat .mb button{font-size:10px; padding:3px 7px; background:#334155; color:#CBD5E1}
+.mat.shown{outline:2px solid var(--sky)}
+
+/* ===== Stage ===== */
+#stageWrap{flex:1; display:flex; flex-direction:column; min-width:0}
+#stage{
+  flex:1; position:relative; display:flex; align-items:center; justify-content:center;
+  background:#0B1120; overflow:hidden;
+}
+.slide{
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; text-align:center;
+  padding:5vh 6vw; animation:in .5s ease;
+}
+@keyframes in{from{opacity:0; transform:translateY(14px)}to{opacity:1}}
+.slide .kw{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-bottom:3.5vh}
+.slide .kw span{
+  font-size:clamp(15px,2.4vw,26px); font-weight:700; padding:.35em .9em;
+  border-radius:999px; background:#ffffff22; backdrop-filter:blur(4px);
+}
+.slide .big{font-weight:900; line-height:1.35; max-width:22em; text-wrap:balance}
+.slide .cap{margin-top:2.5vh; font-size:clamp(12px,1.4vw,16px); opacity:.75}
+.slide img.ph{max-width:92%; max-height:78%; border-radius:12px; box-shadow:0 12px 50px #0008; background:#fff}
+.slide .tagline{position:absolute; bottom:2.5vh; font-size:12px; opacity:.45; letter-spacing:.1em}
+#pinBadge{position:absolute; top:12px; right:14px; background:#F8FAFC22; padding:5px 12px; border-radius:999px; font-size:12px; display:none; z-index:5}
+#stageBtns{position:absolute; bottom:12px; right:14px; display:flex; gap:8px; z-index:5}
+#stageBtns button{background:#33415599; color:var(--sf); padding:8px 12px; backdrop-filter:blur(6px)}
+#stageBtns button:hover{background:#475569}
+#stageBtns button.on{background:var(--ac)}
+
+/* ===== Ticker ===== */
+#ticker{
+  background:#1E293B; border-top:1px solid #334155; padding:8px 14px;
+  display:flex; flex-direction:column; gap:6px;
+}
+#tickText{font-size:13px; color:#CBD5E1; line-height:1.6; max-height:3.2em; overflow:hidden; display:flex; align-items:flex-end}
+#tickText .int{color:#64748B}
+#tickText:empty::before{content:'ここにリアルタイムの文字起こしが表示されます'; color:#475569}
+#demoRow{display:flex; gap:8px}
+#demoIn{flex:1; background:#0F172A; border:1px solid #334155; color:var(--sf); border-radius:8px; padding:8px 10px}
+#demoIn::placeholder{color:#475569}
+.bp{background:var(--ac); color:#fff; padding:8px 14px}
+.bp:hover{filter:brightness(1.15)}
+
+/* ===== Modal ===== */
+#ovl{position:fixed; inset:0; background:#000A; display:none; align-items:center; justify-content:center; z-index:50}
+#ovl.open{display:flex}
+#modal{
+  background:#1E293B; border:1px solid #334155; border-radius:16px;
+  width:min(560px,92vw); max-height:88vh; overflow-y:auto; padding:22px;
+}
+#modal h2{font-size:16px; margin-bottom:14px}
+#modal h3{font-size:13px; color:#A5B4FC; margin:18px 0 8px}
+.frow{display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap}
+.frow label{font-size:13px; min-width:130px; color:#CBD5E1}
+.frow input[type=text],.frow input[type=password]{
+  flex:1; background:#0F172A; border:1px solid #334155; color:var(--sf);
+  border-radius:8px; padding:8px 10px; min-width:180px;
+}
+.frow input[type=range]{flex:1}
+.note{font-size:11px; color:var(--mut); line-height:1.7; margin:6px 0}
+.radio{display:flex; gap:14px; font-size:13px}
+#modal .close{margin-top:16px; width:100%; background:var(--ac); color:#fff; padding:10px}
+
+#toast{
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+  background:#0F172A; border:1px solid var(--ac); color:var(--sf);
+  padding:10px 18px; border-radius:10px; font-size:13px; opacity:0;
+  transition:opacity .3s; pointer-events:none; z-index:99; max-width:80vw;
+}
+#toast.show{opacity:1}
+@media(max-width:760px){
+  #drawer{position:absolute; top:0; bottom:0; z-index:30; box-shadow:4px 0 20px #0008}
+  header h1{font-size:13px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎙 Meeting Support <span>/ 会議サポート</span></h1>
+  <button class="hbtn" id="drawerBtn">📁 資料</button>
+  <select id="modeSel" title="表示モード">
+    <option value="AB">A+B ハイブリッド</option>
+    <option value="A">A: 自動スライド生成</option>
+    <option value="B">B: 資料の自動提示</option>
+  </select>
+  <button class="hbtn" id="micBtn">🎤 文字起こし開始</button>
+  <button class="hbtn" id="nowBtn" title="間隔を待たずに今すぐスライドを更新">⏭ 今すぐ切替</button>
+  <button class="hbtn" id="imgBtn" title="現在の話題からAI画像スライドを生成(OpenAIキー必要)">🎨 画像生成</button>
+  <span class="spacer"></span>
+  <span id="stat"></span>
+  <button class="hbtn" id="setBtn">⚙ 設定</button>
+</header>
+
+<div id="main">
+  <!-- ===== 資料ドロワー(モードB) ===== -->
+  <aside id="drawer" class="closed">
+    <div class="dhead">
+      <b>事前資料ライブラリ(モードB)</b>
+      <button class="mini" id="pickDir">📂 フォルダ読込</button>
+      <button class="mini" id="pickFiles">🖼 ファイル追加</button>
+      <button class="mini" id="aiTagAll" title="全資料にAIでタグを自動付与(APIキー必要)">✨ AI一括タグ</button>
+      <input type="file" id="dirIn" webkitdirectory multiple hidden>
+      <input type="file" id="filesIn" multiple accept="image/*,.pdf" hidden>
+    </div>
+    <div id="matList"></div>
+  </aside>
+
+  <!-- ===== ステージ ===== -->
+  <div id="stageWrap">
+    <div id="stage">
+      <div id="pinBadge">📌 ピン留め中(自動切替停止)</div>
+      <div id="stageBtns">
+        <button id="pinBtn" title="現在のスライドを固定">📌 ピン</button>
+        <button id="fsBtn" title="全画面表示">⛶ 全画面</button>
+      </div>
+    </div>
+    <div id="ticker">
+      <div id="tickText"></div>
+      <div id="demoRow">
+        <input id="demoIn" placeholder="デモ入力: マイクの代わりに発話テキストを打ち込んでEnter(動作確認用)">
+        <button class="bp" id="demoBtn">追加</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 設定モーダル ===== -->
+<div id="ovl">
+  <div id="modal">
+    <h2>⚙ 設定</h2>
+
+    <h3>文字起こしエンジン</h3>
+    <div class="radio">
+      <label><input type="radio" name="eng" value="browser"> ブラウザ内蔵(無料・Chrome推奨)</label>
+      <label><input type="radio" name="eng" value="whisper"> Whisper API(高精度・要OpenAIキー)</label>
+    </div>
+
+    <h3>APIキー(任意)</h3>
+    <div class="frow"><label>OpenAI APIキー</label><input type="password" id="kOpenai" placeholder="sk-..."></div>
+    <div class="frow"><label>Anthropic APIキー</label><input type="password" id="kAnthropic" placeholder="sk-ant-..."></div>
+    <p class="note">キーはこの端末のブラウザ(localStorage)にのみ保存され、各AI社のAPI以外へ送信されることはありません。共有PCでは使用後に消去してください。<br>
+    OpenAIキー → Whisper文字起こし / AI画像生成 / AIタグ付け ・ Anthropicキー → 要点抽出の高精度化 / AIタグ付け</p>
+
+    <h3>スライド自動切替</h3>
+    <div class="frow"><label>切替間隔: <b id="intLabel">7</b> 秒</label><input type="range" id="intRange" min="5" max="12" step="1"></div>
+    <div class="frow"><label><input type="checkbox" id="useLLM"> 要点抽出にAI(Claude Haiku)を使う</label></div>
+    <p class="note">オフの場合もローカルのキーワード抽出で動作します(無料・遅延なし)。</p>
+
+    <h3>セッション記録</h3>
+    <div class="frow">
+      <button class="mini" id="expTxt">📄 文字起こしを保存(.txt)</button>
+      <button class="mini" id="expJson">🧾 全ログを保存(.json)</button>
+      <button class="mini" id="clearBtn">🗑 セッションをクリア</button>
+    </div>
+
+    <button class="close" id="closeModal">閉じる</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   Meeting Support — 会議サポートツール
+   単一HTML / 依存: pdf.js(CDN)のみ
+   ========================================================= */
+
+/* ---------- 設定 ---------- */
+const DEF = {engine:'browser', openaiKey:'', anthropicKey:'', interval:7, mode:'AB', useLLM:false};
+let S = {...DEF};
+try{ S = {...DEF, ...JSON.parse(localStorage.getItem('ms_settings')||'{}')}; }catch(e){}
+function saveS(){ localStorage.setItem('ms_settings', JSON.stringify(S)); }
+
+/* ---------- ユーティリティ ---------- */
+const $ = id => document.getElementById(id);
+let toastT;
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),3500); }
+function norm(s){ return s.normalize('NFKC').toLowerCase().replace(/[ァ-ヴ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60)); }
+function download(name, text, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000); }
+function fmtTime(t){ const d=new Date(t); return d.toTimeString().slice(0,8); }
+
+/* ---------- 文字起こしストア ---------- */
+const transcript = [];      // {t, text}
+let interimText = '';
+let consumedUpTo = 0;       // モードAが消費済みの時刻
+function addTranscript(text){
+  text = text.trim();
+  if(!text) return;
+  transcript.push({t:Date.now(), text});
+  renderTicker();
+}
+function textSince(ts){ return transcript.filter(s=>s.t>ts).map(s=>s.text).join(' '); }
+function recentWindow(ms){
+  const now = Date.now();
+  return transcript.filter(s=>now-s.t<=ms).map(s=>s.text).join(' ') + ' ' + interimText;
+}
+function renderTicker(){
+  const segs = transcript.slice(-4).map(s=>s.text).join(' ');
+  $('tickText').innerHTML = segs
+    ? `<span>${esc(segs)} <span class="int">${esc(interimText)}</span></span>` : '';
+}
+function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------- エンジンA: ブラウザ内蔵音声認識 ---------- */
+let rec = null, listening = false;
+function startBrowserRec(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ toast('このブラウザは音声認識に非対応です。Chromeを使うか、設定でWhisperエンジンに切り替えてください。'); return false; }
+  rec = new SR();
+  rec.lang = 'ja-JP'; rec.continuous = true; rec.interimResults = true;
+  rec.onresult = e => {
+    let interim = '';
+    for(let i=e.resultIndex; i<e.results.length; i++){
+      const r = e.results[i];
+      if(r.isFinal) addTranscript(r[0].transcript);
+      else interim += r[0].transcript;
+    }
+    interimText = interim; renderTicker();
+  };
+  rec.onend = () => { if(listening){ try{ rec.start(); }catch(e){ setTimeout(()=>{ if(listening) try{rec.start()}catch(_){}} ,400); } } };
+  rec.onerror = e => {
+    if(e.error==='not-allowed' || e.error==='service-not-allowed'){
+      stopListening(); toast('マイクの使用が許可されていません(HTTPSまたはlocalhostで開き、マイクを許可してください)');
+    }
+  };
+  try{ rec.start(); }catch(e){ toast('音声認識を開始できません: '+e.message); return false; }
+  return true;
+}
+
+/* ---------- エンジンB: Whisper API ---------- */
+let mediaStream=null, mediaRec=null, whisperTimer=null;
+async function startWhisper(){
+  if(!S.openaiKey){ toast('Whisperを使うには設定でOpenAI APIキーを入力してください'); return false; }
+  try{ mediaStream = await navigator.mediaDevices.getUserMedia({audio:true}); }
+  catch(e){ toast('マイクを取得できません: '+e.message); return false; }
+  return true;
+}
+function cycleRecorder(){
+  if(!listening || !mediaStream) return;
+  const chunks = [];
+  try{ mediaRec = new MediaRecorder(mediaStream, {mimeType:'audio/webm'}); }
+  catch(e){ mediaRec = new MediaRecorder(mediaStream); }
+  mediaRec.ondataavailable = e => chunks.push(e.data);
+  mediaRec.onstop = () => {
+    const blob = new Blob(chunks, {type: mediaRec.mimeType||'audio/webm'});
+    if(blob.size > 4000) sendWhisper(blob);       // ほぼ無音のチャンクは送らない
+    cycleRecorder();                               // 次の5秒チャンクへ
+  };
+  mediaRec.start();
+  whisperTimer = setTimeout(()=>{ if(mediaRec && mediaRec.state!=='inactive') mediaRec.stop(); }, 5000);
+}
+async function sendWhisper(blob){
+  const fd = new FormData();
+  fd.append('file', blob, 'chunk.webm');
+  fd.append('model', 'whisper-1');
+  fd.append('language', 'ja');
+  try{
+    const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method:'POST', headers:{Authorization:'Bearer '+S.openaiKey}, body:fd });
+    const j = await r.json();
+    if(j.text) addTranscript(j.text);
+    else if(j.error) toast('Whisper: '+j.error.message);
+  }catch(e){ console.warn('whisper', e); }
+}
+
+/* ---------- マイク開始/停止 ---------- */
+async function startListening(){
+  const ok = S.engine==='whisper' ? await startWhisper() : startBrowserRec();
+  if(!ok) return;
+  listening = true;
+  if(S.engine==='whisper') cycleRecorder();
+  $('micBtn').classList.add('rec');
+  $('micBtn').textContent = '⏸ 文字起こし停止';
+  setStat();
+}
+function stopListening(){
+  listening = false;
+  if(rec){ try{ rec.stop(); }catch(e){} rec=null; }
+  clearTimeout(whisperTimer);
+  if(mediaRec && mediaRec.state!=='inactive'){ try{ mediaRec.stop(); }catch(e){} }
+  mediaRec = null;
+  if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+  interimText=''; renderTicker();
+  $('micBtn').classList.remove('rec');
+  $('micBtn').textContent = '🎤 文字起こし開始';
+  setStat();
+}
+function setStat(){
+  $('stat').textContent = (listening ? `● ${S.engine==='whisper'?'Whisper':'ブラウザ'}認識中` : '待機中')
+    + ` / ${S.interval}秒間隔 / 資料${materials.length}件`;
+}
+
+/* ---------- 日本語キーワード・キーセンテンス抽出(ローカル) ---------- */
+const STOP = new Set(['こと','もの','これ','それ','あれ','どれ','ここ','そこ','ため','よう','ところ','とき','時','さん','です','ます','思い','思う','感じ','今日','今回','あと','ちょっと','やつ','的','等','方','中','形','話','件','私','僕','皆','自分','一つ','感覚','部分','場合','全部','非常','本当','結構','最初','最後','次','前','後','上','下','度','回','人','日','年','月']);
+function extractTerms(text){
+  const out = [];
+  const re = /[ァ-ヴー]{2,}|[一-龠々]{2,}|[A-Za-z][A-Za-z0-9./+-]{1,}/g;
+  let m;
+  while((m = re.exec(text))){ if(!STOP.has(m[0])) out.push(m[0]); }
+  return out;
+}
+function analyze(text){
+  const freq = {};
+  extractTerms(text).forEach(w => freq[w] = (freq[w]||0)+1);
+  const keywords = Object.entries(freq)
+    .sort((a,b)=> b[1]-a[1] || b[0].length-a[0].length)
+    .slice(0,4).map(e=>e[0]);
+  const sentences = text.split(/[。!?！？\n]+/).map(s=>s.trim()).filter(s=>s.length>=8);
+  let best = sentences[sentences.length-1] || text.trim(), bestScore = -1;
+  sentences.forEach(s=>{
+    let sc = Math.min(s.length,40)/40;
+    keywords.forEach((k,i)=>{ if(s.includes(k)) sc += (4-i); });
+    if(sc > bestScore){ bestScore=sc; best=s; }
+  });
+  if(best.length > 70) best = best.slice(0,68)+'…';
+  return {keywords, sentence: best};
+}
+
+/* ---------- AI要点抽出(Claude Haiku・任意) ---------- */
+async function llmAnalyze(text){
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': S.anthropicKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify({
+      model:'claude-haiku-4-5-20251001', max_tokens:200,
+      messages:[{role:'user', content:
+`次は会議の直近の発話です。プレゼンスライド用に、見出し(30字以内・体言止め推奨)と重要キーワード(最大4個)を抽出し、JSONのみで返してください。
+{"headline":"...","keywords":["...","..."]}
+
+発話:
+${text.slice(0,1200)}`}]
+    })
+  });
+  const j = await r.json();
+  if(j.error) throw new Error(j.error.message);
+  const t = (j.content && j.content[0] && j.content[0].text) || '';
+  const m = t.match(/\{[\s\S]*\}/);
+  if(!m) throw new Error('no json');
+  const o = JSON.parse(m[0]);
+  return {keywords: (o.keywords||[]).slice(0,4), sentence: o.headline||''};
+}
+
+/* ---------- スライド表示 ---------- */
+const THEMES = [
+  {bg:'linear-gradient(135deg,#312E81 0%,#4F46E5 100%)', accent:'#A5B4FC'},
+  {bg:'linear-gradient(135deg,#0C4A6E 0%,#0EA5E9 100%)', accent:'#BAE6FD'},
+  {bg:'linear-gradient(135deg,#4C1D95 0%,#7C3AED 100%)', accent:'#DDD6FE'},
+  {bg:'linear-gradient(135deg,#064E3B 0%,#059669 100%)', accent:'#A7F3D0'},
+];
+const history = [];   // {type, at, ...}
+let pinned = false, lastSlideAt = 0, themeIdx = 0;
+
+function showSlide(slide){
+  slide.at = Date.now();
+  history.push(slide);
+  lastSlideAt = slide.at;
+  const stage = $('stage');
+  stage.querySelectorAll('.slide').forEach(el=>el.remove());
+  const el = document.createElement('div');
+  el.className = 'slide';
+  if(slide.type === 'text'){
+    const th = THEMES[themeIdx++ % THEMES.length];
+    el.style.background = th.bg;
+    const len = (slide.sentence||'').length;
+    const fs = len<=16 ? 'clamp(34px,6.5vw,88px)' : len<=34 ? 'clamp(26px,4.8vw,64px)' : 'clamp(20px,3.4vw,44px)';
+    el.innerHTML =
+      `<div class="kw">${(slide.keywords||[]).map(k=>`<span>${esc(k)}</span>`).join('')}</div>
+       <div class="big" style="font-size:${fs}">${esc(slide.sentence||'')}</div>
+       <div class="tagline">${fmtTime(slide.at)} — AUTO SLIDE</div>`;
+  } else if(slide.type === 'image'){
+    el.style.background = '#0B1120';
+    el.innerHTML =
+      `<img class="ph" src="${slide.src}" alt="">
+       <div class="cap">${esc(slide.caption||'')}</div>
+       <div class="tagline">${fmtTime(slide.at)} — AI IMAGE</div>`;
+  } else if(slide.type === 'material'){
+    el.style.background = '#0B1120';
+    el.innerHTML =
+      `<img class="ph" src="${slide.src}" alt="">
+       <div class="cap">📄 ${esc(slide.name)}${slide.hit&&slide.hit.length?` — 関連ワード: ${esc(slide.hit.join(' / '))}`:''}</div>
+       <div class="tagline">${fmtTime(slide.at)} — MATERIAL</div>`;
+  } else { // welcome
+    el.style.background = THEMES[0].bg;
+    el.innerHTML =
+      `<div class="kw"><span>自動文字起こし</span><span>自動スライド</span><span>資料オートキュー</span></div>
+       <div class="big" style="font-size:clamp(24px,4vw,54px)">🎙 文字起こしを開始すると<br>会話に合わせてスライドが切り替わります</div>
+       <div class="cap">📁 資料 から画像・PDFを読み込むと、関連ワードで自動表示(モードB)</div>`;
+  }
+  stage.insertBefore(el, $('pinBadge'));
+  renderMatList();
+  setStat();
+}
+
+/* ---------- モードB: 資料ライブラリ ---------- */
+const materials = [];   // {key,name,page,tags[],thumb,full,lastShown}
+let tagStore = {};
+try{ tagStore = JSON.parse(localStorage.getItem('ms_tags')||'{}'); }catch(e){}
+function saveTags(){
+  materials.forEach(m=> tagStore[m.key] = m.tags);
+  try{ localStorage.setItem('ms_tags', JSON.stringify(tagStore)); }catch(e){}
+}
+function nameTags(name){
+  return name.replace(/\.[a-z0-9]+$/i,'')
+    .split(/[\s_\-,、().／/（）【】\[\]#]+/)
+    .map(s=>s.trim()).filter(s=>s.length>=2 && !STOP.has(s));
+}
+async function addFiles(files){
+  const list = [...files].filter(f => /\.(png|jpe?g|webp|gif|pdf)$/i.test(f.name));
+  if(!list.length){ toast('画像(png/jpg/webp/gif)またはPDFが見つかりません'); return; }
+  toast(`${list.length}件を読み込み中…`);
+  for(const f of list){
+    try{
+      if(/\.pdf$/i.test(f.name)) await addPdf(f);
+      else await addImage(f);
+    }catch(e){ console.warn(f.name, e); toast(`${f.name} の読込に失敗`); }
+  }
+  saveTags(); renderMatList(); setStat();
+  toast(`資料 ${materials.length}件 準備完了(タグを確認・編集してください)`);
+  $('drawer').classList.remove('closed');
+}
+function fileToImage(f){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.onload = ()=>res(img); img.onerror = rej;
+    img.src = URL.createObjectURL(f);
+  });
+}
+function drawTo(img, w){
+  const scale = Math.min(1, w/(img.naturalWidth||img.width));
+  const c = document.createElement('canvas');
+  c.width = Math.round((img.naturalWidth||img.width)*scale);
+  c.height = Math.round((img.naturalHeight||img.height)*scale);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  return c;
+}
+async function addImage(f){
+  const img = await fileToImage(f);
+  const key = f.name+'#0';
+  materials.push({
+    key, name:f.name, page:0,
+    tags: tagStore[key] || nameTags(f.name),
+    thumb: drawTo(img,200).toDataURL('image/jpeg',.8),
+    full: img.src,               // objectURL
+    lastShown:0
+  });
+}
+async function addPdf(f){
+  if(!window.pdfjsLib){ toast('pdf.jsを読み込めていないためPDFは使えません(ネットワーク確認)'); return; }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const pdf = await pdfjsLib.getDocument({data: await f.arrayBuffer()}).promise;
+  const pages = Math.min(pdf.numPages, 30);
+  for(let p=1; p<=pages; p++){
+    const page = await pdf.getPage(p);
+    const vp1 = page.getViewport({scale:1});
+    const scale = 1280/vp1.width;
+    const vp = page.getViewport({scale});
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    await page.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
+    // 事前スクリーニング: ページ本文からキーワードを自動抽出してタグ化
+    let textTags = [];
+    try{
+      const tc = await page.getTextContent();
+      const txt = tc.items.map(i=>i.str).join(' ');
+      const freq = {};
+      extractTerms(txt).forEach(w=>freq[w]=(freq[w]||0)+1);
+      textTags = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,6).map(e=>e[0]);
+    }catch(e){}
+    const key = `${f.name}#${p}`;
+    const tc2 = document.createElement('canvas');
+    const ts = 200/c.width; tc2.width=200; tc2.height=Math.round(c.height*ts);
+    tc2.getContext('2d').drawImage(c,0,0,tc2.width,tc2.height);
+    materials.push({
+      key, name:`${f.name} p.${p}`, page:p,
+      tags: tagStore[key] || [...new Set([...nameTags(f.name), ...textTags])],
+      thumb: tc2.toDataURL('image/jpeg',.8),
+      full: c.toDataURL('image/jpeg',.88),
+      lastShown:0
+    });
+    if(pdf.numPages>pages && p===pages) toast(`${f.name}: ${pages}ページまで読込(上限)`);
+  }
+}
+function renderMatList(){
+  const cur = history[history.length-1];
+  $('matList').innerHTML = materials.length ? '' :
+    '<p class="note" style="padding:8px">📂 フォルダ読込 または 🖼 ファイル追加 で画像・PDFを登録すると、会話中に関連ワードが出たとき自動表示されます。タグ(カンマ区切り)がマッチング対象です。</p>';
+  materials.forEach((m,i)=>{
+    const div = document.createElement('div');
+    div.className = 'mat' + (cur && cur.type==='material' && cur.key===m.key ? ' shown':'');
+    div.innerHTML =
+      `<img src="${m.thumb}" title="クリックで即時表示">
+       <div class="mi">
+         <div class="mn" title="${esc(m.name)}">${esc(m.name)}</div>
+         <input value="${esc(m.tags.join(', '))}" placeholder="タグ(カンマ区切り)">
+         <div class="mb"><button data-a="show">▶ 表示</button><button data-a="ai">✨ AIタグ</button><button data-a="del">✕</button></div>
+       </div>`;
+    div.querySelector('img').onclick = ()=> showMaterial(m, []);
+    div.querySelector('input').onchange = e => { m.tags = e.target.value.split(/[,、]/).map(s=>s.trim()).filter(Boolean); saveTags(); };
+    div.querySelector('[data-a=show]').onclick = ()=> showMaterial(m, []);
+    div.querySelector('[data-a=ai]').onclick = ()=> aiTag(m);
+    div.querySelector('[data-a=del]').onclick = ()=>{ materials.splice(i,1); renderMatList(); setStat(); };
+    $('matList').appendChild(div);
+  });
+}
+function showMaterial(m, hit){
+  m.lastShown = Date.now();
+  showSlide({type:'material', key:m.key, name:m.name, src:m.full, hit});
+}
+
+/* ---------- モードB: マッチングエンジン ---------- */
+function matchMaterial(){
+  const win = norm(recentWindow(25000));
+  if(win.trim().length < 4) return null;
+  let best = null, bestScore = 0;
+  const cooldown = Math.max(30000, S.interval*1000*4);
+  materials.forEach(m=>{
+    if(Date.now() - m.lastShown < cooldown) return;
+    let sc = 0; const hit = [];
+    m.tags.forEach(tag=>{
+      const t = norm(tag.trim());
+      if(t.length>=2 && win.includes(t)){ sc += t.length; hit.push(tag); }
+    });
+    if(sc > bestScore){ bestScore = sc; best = {m, hit}; }
+  });
+  return best;
+}
+
+/* ---------- AIタグ付け(vision・任意) ---------- */
+function matJpegB64(m, w){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.onload = ()=> res(drawTo(img,w).toDataURL('image/jpeg',.8));
+    img.onerror = rej;
+    img.src = m.full;
+  });
+}
+async function aiTag(m){
+  if(!S.anthropicKey && !S.openaiKey){ toast('AIタグ付けには設定でAPIキー(Anthropic または OpenAI)を入力してください'); return; }
+  toast(`✨ ${m.name} をAIでタグ付け中…`);
+  try{
+    const dataUrl = await matJpegB64(m, 640);
+    const b64 = dataUrl.split(',')[1];
+    let text = '';
+    const ask = 'この画像(会議資料)の内容を表す検索用の日本語タグを5〜8個、カンマ区切りだけで出力してください。';
+    if(S.anthropicKey){
+      const r = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'content-type':'application/json','x-api-key':S.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:200, messages:[{role:'user',content:[
+          {type:'image', source:{type:'base64', media_type:'image/jpeg', data:b64}},
+          {type:'text', text:ask}]}]})
+      });
+      const j = await r.json();
+      if(j.error) throw new Error(j.error.message);
+      text = (j.content && j.content[0] && j.content[0].text) || '';
+    } else {
+      const r = await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+S.openaiKey,'Content-Type':'application/json'},
+        body: JSON.stringify({model:'gpt-4o-mini', max_tokens:200, messages:[{role:'user',content:[
+          {type:'image_url', image_url:{url:dataUrl}},
+          {type:'text', text:ask}]}]})
+      });
+      const j = await r.json();
+      if(j.error) throw new Error(j.error.message);
+      text = (j.choices && j.choices[0] && j.choices[0].message.content) || '';
+    }
+    const tags = text.split(/[,、\n]/).map(s=>s.replace(/^[\s・\-#*]+|[\s。]+$/g,'')).filter(s=>s && s.length<=14).slice(0,8);
+    if(tags.length){ m.tags = [...new Set([...m.tags, ...tags])]; saveTags(); renderMatList(); toast(`✅ タグ付け完了: ${tags.join(', ')}`); }
+    else toast('タグを抽出できませんでした');
+  }catch(e){ toast('AIタグ付け失敗: '+e.message); }
+}
+async function aiTagAll(){
+  if(!materials.length){ toast('先に資料を読み込んでください'); return; }
+  for(const m of materials) await aiTag(m);
+}
+
+/* ---------- AI画像生成(任意) ---------- */
+let lastImageGen = 0;
+async function genImage(){
+  if(!S.openaiKey){ toast('AI画像生成には設定でOpenAI APIキーを入力してください'); return; }
+  const wait = 60000 - (Date.now()-lastImageGen);
+  if(wait > 0){ toast(`画像生成は60秒間隔です(あと${Math.ceil(wait/1000)}秒)`); return; }
+  const topic = recentWindow(60000).trim() ||
+    (history.filter(h=>h.type==='text').slice(-1)[0]||{}).sentence || '';
+  if(!topic){ toast('まだ話題がありません(文字起こしを開始するかデモ入力してください)'); return; }
+  lastImageGen = Date.now();
+  toast('🎨 画像を生成中…(数秒〜数十秒)');
+  const prompt = `会議の話題「${topic.slice(0,300)}」を象徴する、シンプルでモダンなフラットデザインのイラスト。文字・ロゴは入れない。落ち着いた青系の配色。`;
+  async function call(body){
+    const r = await fetch('https://api.openai.com/v1/images/generations',{
+      method:'POST', headers:{Authorization:'Bearer '+S.openaiKey,'Content-Type':'application/json'},
+      body: JSON.stringify(body)});
+    return r.json();
+  }
+  try{
+    let j = await call({model:'gpt-image-1', prompt, size:'1536x1024'});
+    if(j.error) j = await call({model:'dall-e-3', prompt, size:'1792x1024', response_format:'b64_json'});
+    if(j.error) throw new Error(j.error.message);
+    const d = j.data && j.data[0];
+    const src = d.b64_json ? 'data:image/png;base64,'+d.b64_json : d.url;
+    showSlide({type:'image', src, caption: topic.slice(0,60)});
+  }catch(e){ lastImageGen = 0; toast('画像生成失敗: '+e.message); }
+}
+
+/* ---------- 自動切替パイプライン ---------- */
+let pipelining = false;
+async function pipeline(force){
+  if(pipelining) return;
+  pipelining = true;
+  try{
+    // モードB: 資料マッチを優先
+    if(S.mode !== 'A' && materials.length){
+      const hit = matchMaterial();
+      if(hit){ showMaterial(hit.m, hit.hit); return; }
+    }
+    // モードA: テキストスライド生成
+    if(S.mode !== 'B'){
+      const text = textSince(consumedUpTo);
+      if(text.replace(/\s/g,'').length < (force?4:12)) return;
+      consumedUpTo = Date.now();
+      let a;
+      if(S.useLLM && S.anthropicKey){
+        try{ a = await llmAnalyze(text); }catch(e){ console.warn('llm',e); a = analyze(text); }
+      } else a = analyze(text);
+      if(!a.sentence && !a.keywords.length) return;
+      showSlide({type:'text', ...a});
+    }
+  } finally { pipelining = false; }
+}
+setInterval(()=>{
+  if(pinned) return;
+  if(Date.now() - lastSlideAt < S.interval*1000) return;
+  pipeline(false);
+}, 1000);
+
+/* ---------- エクスポート ---------- */
+function exportTxt(){
+  if(!transcript.length){ toast('文字起こしがまだありません'); return; }
+  const txt = transcript.map(s=>`[${fmtTime(s.t)}] ${s.text}`).join('\n');
+  download(`meeting-${new Date().toISOString().slice(0,10)}.txt`, txt, 'text/plain');
+}
+function exportJson(){
+  const data = {
+    exportedAt: new Date().toISOString(),
+    transcript,
+    slides: history.map(h=>({type:h.type, at:h.at, sentence:h.sentence, keywords:h.keywords, name:h.name, hit:h.hit, caption:h.caption})),
+    materials: materials.map(m=>({name:m.name, tags:m.tags}))
+  };
+  download(`meeting-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json');
+}
+function clearSession(){
+  transcript.length = 0; history.length = 0; interimText='';
+  consumedUpTo = Date.now(); lastSlideAt = 0; themeIdx = 0;
+  renderTicker(); showSlide({type:'welcome'}); lastSlideAt = 0;
+  toast('セッションをクリアしました');
+}
+
+/* ---------- UI 配線 ---------- */
+$('micBtn').onclick = ()=> listening ? stopListening() : startListening();
+$('nowBtn').onclick = ()=>{ lastSlideAt = 0; pipeline(true); };
+$('imgBtn').onclick = genImage;
+$('drawerBtn').onclick = ()=> $('drawer').classList.toggle('closed');
+$('pickDir').onclick = ()=> $('dirIn').click();
+$('pickFiles').onclick = ()=> $('filesIn').click();
+$('dirIn').onchange = e => addFiles(e.target.files);
+$('filesIn').onchange = e => addFiles(e.target.files);
+$('aiTagAll').onclick = aiTagAll;
+$('pinBtn').onclick = ()=>{
+  pinned = !pinned;
+  $('pinBtn').classList.toggle('on', pinned);
+  $('pinBadge').style.display = pinned ? 'block':'none';
+};
+$('fsBtn').onclick = ()=>{
+  if(document.fullscreenElement) document.exitFullscreen();
+  else $('stage').requestFullscreen();
+};
+$('modeSel').onchange = e =>{ S.mode = e.target.value; saveS(); };
+function demoAdd(){
+  const v = $('demoIn').value.trim();
+  if(!v) return;
+  addTranscript(v); $('demoIn').value='';
+}
+$('demoBtn').onclick = demoAdd;
+$('demoIn').addEventListener('keydown', e=>{ if(e.key==='Enter') demoAdd(); });
+
+/* 設定モーダル */
+$('setBtn').onclick = ()=>{
+  document.querySelectorAll('[name=eng]').forEach(r=> r.checked = r.value===S.engine);
+  $('kOpenai').value = S.openaiKey;
+  $('kAnthropic').value = S.anthropicKey;
+  $('intRange').value = S.interval; $('intLabel').textContent = S.interval;
+  $('useLLM').checked = S.useLLM;
+  $('ovl').classList.add('open');
+};
+$('closeModal').onclick = ()=>{
+  const eng = document.querySelector('[name=eng]:checked');
+  const wasListening = listening;
+  S.engine = eng ? eng.value : 'browser';
+  S.openaiKey = $('kOpenai').value.trim();
+  S.anthropicKey = $('kAnthropic').value.trim();
+  S.interval = +$('intRange').value;
+  S.useLLM = $('useLLM').checked;
+  saveS(); setStat();
+  $('ovl').classList.remove('open');
+  if(wasListening){ stopListening(); startListening(); }  // エンジン切替を反映
+};
+$('ovl').onclick = e =>{ if(e.target===$('ovl')) $('closeModal').click(); };
+$('intRange').oninput = e => $('intLabel').textContent = e.target.value;
+$('expTxt').onclick = exportTxt;
+$('expJson').onclick = exportJson;
+$('clearBtn').onclick = clearSession;
+
+/* ---------- 初期化 ---------- */
+$('modeSel').value = S.mode;
+showSlide({type:'welcome'});
+lastSlideAt = 0;                 // 最初の発話で即スライド化できるように
+consumedUpTo = Date.now();
+renderMatList();
+setStat();
+window.MS = {materials, transcript, history, addTranscript, addFiles, pipeline, get settings(){return S}};  // デバッグ・拡張用フック
+if(location.protocol==='file:'){
+  toast('⚠ file:// で開いているためマイクは使えません。「python3 -m http.server」等でローカル配信するか、Webサーバーに置いてください(デモ入力は使えます)');
+}
+</script>
+</body>
+</html>
