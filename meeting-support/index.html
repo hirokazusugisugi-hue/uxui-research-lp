@@ -78,6 +78,10 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
   border-radius:999px; background:#ffffff22; backdrop-filter:blur(4px);
 }
 .slide .big{font-weight:900; line-height:1.35; max-width:22em; text-wrap:balance}
+.slide .emj{font-size:clamp(38px,6.5vw,86px); line-height:1; margin-bottom:2.5vh; letter-spacing:.15em; filter:drop-shadow(0 6px 18px #0006)}
+.slide .bl{list-style:none; margin-top:3.2vh; display:flex; flex-direction:column; gap:1.4vh;
+  font-size:clamp(15px,2.1vw,26px); font-weight:500; text-align:left; max-width:30em; line-height:1.5}
+.slide .bl li::before{content:'▸ '; opacity:.65}
 .slide .cap{margin-top:2.5vh; font-size:clamp(12px,1.4vw,16px); opacity:.75}
 .slide img.ph{max-width:92%; max-height:78%; border-radius:12px; box-shadow:0 12px 50px #0008; background:#fff}
 .slide .tagline{position:absolute; bottom:2.5vh; font-size:12px; opacity:.45; letter-spacing:.1em}
@@ -211,7 +215,7 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
 
     <h3>スライド自動切替</h3>
     <div class="frow"><label>切替間隔: <b id="intLabel">7</b> 秒</label><input type="range" id="intRange" min="5" max="12" step="1"></div>
-    <div class="frow"><label><input type="checkbox" id="useLLM"> 要点抽出にAI(Claude Haiku)を使う</label></div>
+    <div class="frow"><label><input type="checkbox" id="useLLM"> 要点まとめにAIを使う(Anthropic/OpenAIキーのどちらかが必要・高品質)</label></div>
     <div class="frow"><label><input type="checkbox" id="autoImg"> 話題が変わったらAI画像を自動生成(OpenAIキー・最短60秒間隔)</label></div>
     <p class="note">チェックがオフでもローカルのキーワード抽出で動作します(無料・遅延なし)。画像の自動生成は話題のキーワードが入れ替わったタイミングで実行されます。</p>
 
@@ -397,46 +401,89 @@ function analyze(text, avoid){
     else if(text.trim().length > 70)
       sentences = text.split(/[、,]+/).map(s=>s.trim()).filter(s=>s.length>=8);
   }
-  let best = '', bestScore = -1;
+  if(!sentences.length && text.trim().length >= 4) sentences = [text.trim()];
+  // 各文をスコアリングし、未表示のものから要点2〜3個を選ぶ
+  const scored = [];
   sentences.forEach((s,idx)=>{
     if(avoid && avoid.has(s)) return;               // 表示済みの文は選ばない
     let sc = Math.min(s.length,40)/40 + idx*0.15;   // 新しい発話を優先
     keywords.forEach((k,i)=>{ if(s.includes(k)) sc += (4-i); });
-    if(sc > bestScore){ bestScore=sc; best=s; }
+    scored.push([sc, s]);
   });
-  if(!best && !avoid) best = sentences[sentences.length-1] || text.trim();
-  const raw = best;
-  if(best.length > 70) best = best.slice(0,68)+'…';
-  return {keywords, sentence: best, raw};
+  scored.sort((a,b)=> b[0]-a[0]);
+  const picked = [];
+  for(const [,s] of scored){
+    if(picked.length >= 3) break;
+    if(picked.some(p => p.includes(s) || s.includes(p))) continue;   // ほぼ同じ文は1つに
+    picked.push(s);
+  }
+  picked.sort((a,b)=> sentences.indexOf(a) - sentences.indexOf(b));  // 発話順に並べる
+  const bullets = picked.map(s => s.length > 46 ? s.slice(0,44)+'…' : s);
+  const headline = keywords.find(k => picked[0] && picked[0].includes(k))
+    || keywords[0] || (picked[0]||text.trim()).slice(0,16);
+  return {keywords, headline, bullets, raws: picked};
 }
 
-/* ---------- AI要点抽出(Claude Haiku・任意) ---------- */
+/* キーワード → ピクトグラム(イラスト)対応表 */
+const EMOJI_MAP = [
+  [/売上|販売|営業|受注|収益/,'📈'], [/顧客|ユーザ|お客/,'🧑‍💼'], [/会議|打合|ミーティング|議論/,'🗣️'],
+  [/ウェブ|web|サイト|ホームページ|ネット/i,'🌐'], [/デザイン|ui|レイアウト/i,'🎨'], [/ux|体験|満足/i,'✨'],
+  [/ai|人工知能|生成/i,'🤖'], [/データ|分析|解析|統計/,'📊'], [/計画|戦略|方針|構想/,'🧭'],
+  [/課題|問題|リスク|懸念/,'⚠️'], [/改善|改定|見直|最適/,'🔧'], [/コスト|費用|予算|価格|値/,'💰'],
+  [/スケジュール|日程|期限|納期|来月|今月/,'📅'], [/開発|実装|システム|アプリ/,'💻'], [/教育|研修|学習|セミナー/,'📚'],
+  [/契約|法務|規約|申請/,'📜'], [/品質|検査|テスト|検証/,'✅'], [/人事|採用|評価|人材/,'👥'],
+  [/マーケ|広告|宣伝|集客|sns/i,'📣'], [/店舗|お店|小売|売場/,'🏪'], [/製造|工場|生産/,'🏭'],
+  [/物流|配送|運送|在庫/,'🚚'], [/決定|承認|合意|契約/,'🤝'], [/アイデア|企画|提案|発想/,'💡'],
+  [/目標|ゴール|達成|kpi/i,'🎯'], [/報告|資料|レポート|書類/,'📄'], [/成長|拡大|向上|伸/,'🚀'],
+  [/地域|市場|エリア|海外/,'🗺️'], [/飲食|レストラン|メニュー|食/,'🍽️'], [/健康|医療|介護|病院/,'🏥'],
+  [/環境|エコ|省エネ|脱炭素/,'🌱'], [/金融|銀行|融資|補助金/,'🏦'], [/セキュリティ|安全|保護/,'🔒'],
+  [/診断士|コンサル|支援/,'🧑‍🏫'], [/中小企業|企業|会社/,'🏢'], [/リピート|継続|定着/,'🔁'],
+];
+function emojiFor(keywords){
+  const out = [];
+  for(const k of (keywords||[])){
+    for(const [re, e] of EMOJI_MAP){
+      if(re.test(k) && !out.includes(e)){ out.push(e); break; }
+    }
+  }
+  return out.slice(0,3);
+}
+
+/* ---------- AI要点まとめ(Anthropic / OpenAI どちらかのキーで動作・任意) ---------- */
 async function llmAnalyze(text){
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'content-type':'application/json',
-      'x-api-key': S.anthropicKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
-    body: JSON.stringify({
-      model:'claude-haiku-4-5-20251001', max_tokens:200,
-      messages:[{role:'user', content:
-`次は会議の直近の発話です。プレゼンスライド用に、見出し(30字以内・体言止め推奨)と重要キーワード(最大4個)を抽出し、JSONのみで返してください。
-{"headline":"...","keywords":["...","..."]}
+  const prompt =
+`あなたは会議のプレゼンスライドを作る編集者です。次の発話ログを要約し、スライド1枚分をJSONのみで返してください。
+{"headline":"見出し(15字以内・体言止め)","bullets":["要点(各30字以内)を2〜3個"],"keywords":["キーワード最大4個"]}
+発話に含まれない情報は創作しないこと。
 
 発話:
-${text.slice(0,1200)}`}]
-    })
-  });
-  const j = await r.json();
-  if(j.error) throw new Error(j.error.message);
-  const t = (j.content && j.content[0] && j.content[0].text) || '';
+${text.slice(0,1200)}`;
+  let t = '';
+  if(S.anthropicKey){
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{'content-type':'application/json','x-api-key':S.anthropicKey,
+        'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:300,
+        messages:[{role:'user', content: prompt}]})});
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    t = (j.content && j.content[0] && j.content[0].text) || '';
+  } else {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method:'POST',
+      headers:{Authorization:'Bearer '+S.openaiKey,'Content-Type':'application/json'},
+      body: JSON.stringify({model:'gpt-4o-mini', max_tokens:300,
+        messages:[{role:'user', content: prompt}]})});
+    const j = await r.json();
+    if(j.error) throw new Error(j.error.message);
+    t = (j.choices && j.choices[0] && j.choices[0].message.content) || '';
+  }
   const m = t.match(/\{[\s\S]*\}/);
   if(!m) throw new Error('no json');
   const o = JSON.parse(m[0]);
-  return {keywords: (o.keywords||[]).slice(0,4), sentence: o.headline||''};
+  return {keywords: (o.keywords||[]).slice(0,4), headline: o.headline||'',
+          bullets: (o.bullets||[]).slice(0,3), raws: []};
 }
 
 /* ---------- スライド表示 ---------- */
@@ -470,11 +517,13 @@ function renderStage(slide){
     if(slide.theme === undefined) slide.theme = themeIdx++ % THEMES.length;
     const th = THEMES[slide.theme];
     el.style.background = th.bg;
-    const len = (slide.sentence||'').length;
-    const fs = len<=16 ? 'clamp(34px,6.5vw,88px)' : len<=34 ? 'clamp(26px,4.8vw,64px)' : 'clamp(20px,3.4vw,44px)';
+    const headline = slide.headline || slide.sentence || '';
+    const fs = headline.length<=10 ? 'clamp(38px,7vw,96px)' : headline.length<=20 ? 'clamp(30px,5.2vw,70px)' : 'clamp(22px,3.6vw,48px)';
     el.innerHTML =
       `<div class="kw">${(slide.keywords||[]).map(k=>`<span>${esc(k)}</span>`).join('')}</div>
-       <div class="big" style="font-size:${fs}">${esc(slide.sentence||'')}</div>
+       ${slide.emoji && slide.emoji.length ? `<div class="emj">${slide.emoji.join(' ')}</div>` : ''}
+       <div class="big" style="font-size:${fs}">${esc(headline)}</div>
+       ${slide.bullets && slide.bullets.length ? `<ul class="bl">${slide.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : ''}
        <div class="tagline">${fmtTime(slide.at)} — AUTO SLIDE</div>`;
   } else if(slide.type === 'image'){
     el.style.background = '#0B1120';
@@ -713,7 +762,14 @@ async function aiTagAll(){
 /* ---------- AI画像生成(任意) ---------- */
 let lastImageGen = 0;
 async function genImage(auto){
-  if(!S.openaiKey){ if(!auto) toast('AI画像生成には設定でOpenAI APIキーを入力してください'); return; }
+  if(!S.openaiKey){
+    if(!auto){
+      toast('AI画像生成にはOpenAI APIキーが必要です。設定画面を開きました — platform.openai.com で取得したキー(sk-…)を入力してください');
+      $('setBtn').click();
+      setTimeout(()=>$('kOpenai').focus(), 150);
+    }
+    return;
+  }
   const wait = 60000 - (Date.now()-lastImageGen);
   if(wait > 0){ if(!auto) toast(`画像生成は60秒間隔です(あと${Math.ceil(wait/1000)}秒)`); return; }
   const topic = recentWindow(60000).trim() ||
@@ -790,8 +846,10 @@ let lastSlideSentence = '', lastSlideKeywords = [];
 let lastPipelineText = '';
 const recentShown = new Map();   // 表示済みの文(原文) -> 表示時刻
 
+function slideSig(a){ return (a.headline||'') + '|' + (a.bullets||[]).join('|'); }
 function looksSame(a){
-  return !!a.sentence && a.sentence === lastSlideSentence;
+  const sig = slideSig(a);
+  return sig !== '|' && sig === lastSlideSentence;
 }
 
 async function pipeline(force){
@@ -811,20 +869,21 @@ async function pipeline(force){
       const now = Date.now();
       for(const [s,t] of recentShown) if(now - t > windowMs * 2) recentShown.delete(s);
       let a;
-      if(S.useLLM && S.anthropicKey){
+      if(S.useLLM && (S.anthropicKey || S.openaiKey)){
         if(!force && text === lastPipelineText) return;    // LLM節約: 新しい発話がない
         lastPipelineText = text;
         try{ a = await llmAnalyze(text); }catch(e){ console.warn('llm',e); a = analyze(text, recentShown); }
       } else {
         a = analyze(text, force ? null : recentShown);     // 未表示の文がある限り順に消化
       }
-      if(!a.sentence) return;                              // 未表示の新しい文がない
+      if(!a.bullets || !a.bullets.length) return;          // 未表示の新しい要点がない
       if(!force && looksSame(a)) return;
       maybeAutoImage(a);
-      lastSlideSentence = a.sentence || '';
+      lastSlideSentence = slideSig(a);
       lastSlideKeywords = a.keywords || [];
-      if(a.raw) recentShown.set(a.raw, now);
-      showSlide({type:'text', sentence:a.sentence, keywords:a.keywords});
+      (a.raws||[]).forEach(r => recentShown.set(r, now));
+      showSlide({type:'text', headline:a.headline, bullets:a.bullets,
+                 keywords:a.keywords, emoji:emojiFor(a.keywords)});
     }
   } finally { pipelining = false; }
 }
@@ -855,7 +914,7 @@ function exportJson(){
   const data = {
     exportedAt: new Date().toISOString(),
     transcript,
-    slides: history.map(h=>({type:h.type, at:h.at, sentence:h.sentence, keywords:h.keywords, name:h.name, hit:h.hit, caption:h.caption})),
+    slides: history.map(h=>({type:h.type, at:h.at, headline:h.headline, bullets:h.bullets, sentence:h.sentence, keywords:h.keywords, name:h.name, hit:h.hit, caption:h.caption})),
     materials: materials.map(m=>({name:m.name, tags:m.tags}))
   };
   download(`meeting-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json');
