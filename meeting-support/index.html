@@ -185,8 +185,8 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
     <div id="ticker">
       <div id="tickText"></div>
       <div id="demoRow">
-        <input id="demoIn" placeholder="デモ入力: マイクの代わりに発話テキストを打ち込んでEnter(動作確認用)">
-        <button class="bp" id="demoBtn">追加</button>
+        <input id="demoIn" placeholder="🎤 ここに話す/入力すると自動で文字起こしに登録されます(Enter不要・スマホは音声入力でもOK)">
+        <button class="bp" id="demoBtn">即登録</button>
       </div>
     </div>
   </div>
@@ -264,7 +264,8 @@ function fmtTime(t){ const d=new Date(t); return d.toTimeString().slice(0,8); }
 
 /* ---------- 文字起こしストア ---------- */
 const transcript = [];      // {t, text}
-let interimText = '';
+let interimText = '';       // マイク認識の途中テキスト
+let typedInterim = '';      // 入力欄に打ち込み中(未登録)のテキスト
 function addTranscript(text){
   text = text.trim();
   if(!text) return;
@@ -273,12 +274,14 @@ function addTranscript(text){
 }
 function recentWindow(ms){
   const now = Date.now();
-  return transcript.filter(s=>now-s.t<=ms).map(s=>s.text).join(' ') + ' ' + interimText;
+  return transcript.filter(s=>now-s.t<=ms).map(s=>s.text).join(' ')
+    + ' ' + interimText + ' ' + typedInterim;
 }
 function renderTicker(){
   const segs = transcript.slice(-4).map(s=>s.text).join(' ');
-  $('tickText').innerHTML = segs
-    ? `<span>${esc(segs)} <span class="int">${esc(interimText)}</span></span>` : '';
+  const interim = (interimText + ' ' + typedInterim).trim();
+  $('tickText').innerHTML = (segs || interim)
+    ? `<span>${esc(segs)} <span class="int">${esc(interim)}</span></span>` : '';
 }
 function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -286,7 +289,7 @@ function esc(s){ return s.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&g
 let rec = null, listening = false;
 function startBrowserRec(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR){ toast('このブラウザは音声認識に非対応です。Chromeを使うか、設定でWhisperエンジンに切り替えてください。'); return false; }
+  if(!SR){ toast('このブラウザは音声認識に非対応です。下の入力欄にスマホ/PCの音声入力(キーボードのマイク)で話し込んでください — Enter不要で自動登録されます。'); return false; }
   rec = new SR();
   rec.lang = 'ja-JP'; rec.continuous = true; rec.interimResults = true;
   rec.onresult = e => {
@@ -788,10 +791,7 @@ let lastPipelineText = '';
 const recentShown = new Map();   // 表示済みの文(原文) -> 表示時刻
 
 function looksSame(a){
-  if(a.sentence && a.sentence === lastSlideSentence) return true;
-  if(a.keywords.length && a.keywords.join('|') === lastSlideKeywords.join('|')
-     && Math.abs((a.sentence||'').length - lastSlideSentence.length) < 6) return true;
-  return false;
+  return !!a.sentence && a.sentence === lastSlideSentence;
 }
 
 async function pipeline(force){
@@ -808,14 +808,16 @@ async function pipeline(force){
       const windowMs = Math.max(20000, S.interval * 3000);
       const text = recentWindow(windowMs).trim();
       if(text.replace(/\s/g,'').length < (force?4:10)) return;
-      if(!force && text === lastPipelineText) return;      // 新しい発話がない
-      lastPipelineText = text;
       const now = Date.now();
       for(const [s,t] of recentShown) if(now - t > windowMs * 2) recentShown.delete(s);
       let a;
       if(S.useLLM && S.anthropicKey){
+        if(!force && text === lastPipelineText) return;    // LLM節約: 新しい発話がない
+        lastPipelineText = text;
         try{ a = await llmAnalyze(text); }catch(e){ console.warn('llm',e); a = analyze(text, recentShown); }
-      } else a = analyze(text, force ? null : recentShown);
+      } else {
+        a = analyze(text, force ? null : recentShown);     // 未表示の文がある限り順に消化
+      }
       if(!a.sentence) return;                              // 未表示の新しい文がない
       if(!force && looksSame(a)) return;
       maybeAutoImage(a);
@@ -859,7 +861,7 @@ function exportJson(){
   download(`meeting-${new Date().toISOString().slice(0,10)}.json`, JSON.stringify(data,null,2), 'application/json');
 }
 function clearSession(){
-  transcript.length = 0; history.length = 0; interimText='';
+  transcript.length = 0; history.length = 0; interimText=''; typedInterim='';
   lastSlideAt = 0; themeIdx = 0; viewIdx = -1;
   lastSlideSentence = ''; lastSlideKeywords = [];
   lastPipelineText = ''; recentShown.clear();
@@ -897,13 +899,35 @@ $('fsBtn').onclick = ()=>{
   else $('stage').requestFullscreen();
 };
 $('modeSel').onchange = e =>{ S.mode = e.target.value; saveS(); };
-function demoAdd(){
+/* 入力欄のライブ登録: 入力が2秒止まる or 80文字超で自動的に文字起こしへ登録(Enter不要)。
+   入力途中のテキストも typedInterim としてスライド生成に即時反映される。 */
+let typeTimer = null, composing = false;
+function flushTyped(){
+  clearTimeout(typeTimer); typeTimer = null;
   const v = $('demoIn').value.trim();
-  if(!v) return;
-  addTranscript(v); $('demoIn').value='';
+  typedInterim = '';
+  $('demoIn').value = '';
+  if(v) addTranscript(v);
+  renderTicker();
 }
-$('demoBtn').onclick = demoAdd;
-$('demoIn').addEventListener('keydown', e=>{ if(e.key==='Enter') demoAdd(); });
+function armFlush(){
+  clearTimeout(typeTimer);
+  typeTimer = setTimeout(()=>{ composing ? armFlush() : flushTyped(); }, 2000);
+}
+$('demoIn').addEventListener('compositionstart', ()=>{ composing = true; });
+$('demoIn').addEventListener('compositionend', e=>{
+  composing = false;
+  typedInterim = e.target.value; renderTicker(); armFlush();
+});
+$('demoIn').addEventListener('input', e=>{
+  typedInterim = e.target.value;
+  renderTicker();
+  if(composing) return;                       // IME変換中は登録を保留
+  if(e.target.value.length > 80) flushTyped();
+  else armFlush();
+});
+$('demoBtn').onclick = flushTyped;
+$('demoIn').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing) flushTyped(); });
 
 /* 設定モーダル */
 $('setBtn').onclick = ()=>{
