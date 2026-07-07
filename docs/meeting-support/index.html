@@ -86,6 +86,8 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
 #stageBtns button{background:#33415599; color:var(--sf); padding:8px 12px; backdrop-filter:blur(6px)}
 #stageBtns button:hover{background:#475569}
 #stageBtns button.on{background:var(--ac)}
+#stageBtns span{align-self:center; font-size:12px; color:#CBD5E1; min-width:34px; text-align:center}
+#liveBtn{color:#FCA5A5}
 
 /* ===== Ticker ===== */
 #ticker{
@@ -147,6 +149,7 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
   <button class="hbtn" id="micBtn">🎤 文字起こし開始</button>
   <button class="hbtn" id="nowBtn" title="間隔を待たずに今すぐスライドを更新">⏭ 今すぐ切替</button>
   <button class="hbtn" id="imgBtn" title="現在の話題からAI画像スライドを生成(OpenAIキー必要)">🎨 画像生成</button>
+  <button class="hbtn" id="minBtn" title="文字起こし全文からAIで議事録を生成(APIキー必要)">📝 議事録</button>
   <span class="spacer"></span>
   <span id="stat"></span>
   <button class="hbtn" id="setBtn">⚙ 設定</button>
@@ -171,6 +174,10 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
     <div id="stage">
       <div id="pinBadge">📌 ピン留め中(自動切替停止)</div>
       <div id="stageBtns">
+        <button id="prevBtn" title="前のスライドへ">◀</button>
+        <span id="navPos"></span>
+        <button id="nextBtn" title="次のスライドへ">▶</button>
+        <button id="liveBtn" title="最新スライドに戻り自動切替を再開" style="display:none">● 最新へ</button>
         <button id="pinBtn" title="現在のスライドを固定">📌 ピン</button>
         <button id="fsBtn" title="全画面表示">⛶ 全画面</button>
       </div>
@@ -205,7 +212,8 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
     <h3>スライド自動切替</h3>
     <div class="frow"><label>切替間隔: <b id="intLabel">7</b> 秒</label><input type="range" id="intRange" min="5" max="12" step="1"></div>
     <div class="frow"><label><input type="checkbox" id="useLLM"> 要点抽出にAI(Claude Haiku)を使う</label></div>
-    <p class="note">オフの場合もローカルのキーワード抽出で動作します(無料・遅延なし)。</p>
+    <div class="frow"><label><input type="checkbox" id="autoImg"> 話題が変わったらAI画像を自動生成(OpenAIキー・最短60秒間隔)</label></div>
+    <p class="note">チェックがオフでもローカルのキーワード抽出で動作します(無料・遅延なし)。画像の自動生成は話題のキーワードが入れ替わったタイミングで実行されます。</p>
 
     <h3>セッション記録</h3>
     <div class="frow">
@@ -215,6 +223,19 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
     </div>
 
     <button class="close" id="closeModal">閉じる</button>
+  </div>
+</div>
+
+<!-- ===== 議事録モーダル ===== -->
+<div id="minOvl" style="position:fixed;inset:0;background:#000A;display:none;align-items:center;justify-content:center;z-index:60">
+  <div style="background:#1E293B;border:1px solid #334155;border-radius:16px;width:min(680px,94vw);max-height:88vh;display:flex;flex-direction:column;padding:20px;gap:10px">
+    <h2 style="font-size:16px">📝 議事録(編集できます)</h2>
+    <textarea id="minText" style="flex:1;min-height:320px;background:#0F172A;color:#F1F5F9;border:1px solid #334155;border-radius:8px;padding:12px;font-size:13px;line-height:1.7;resize:vertical"></textarea>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="mini" id="minDl">💾 ダウンロード(.md)</button>
+      <span style="flex:1"></span>
+      <button class="bp" id="minClose">閉じる</button>
+    </div>
   </div>
 </div>
 
@@ -228,7 +249,7 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
    ========================================================= */
 
 /* ---------- 設定 ---------- */
-const DEF = {engine:'browser', openaiKey:'', anthropicKey:'', interval:7, mode:'AB', useLLM:false};
+const DEF = {engine:'browser', openaiKey:'', anthropicKey:'', interval:7, mode:'AB', useLLM:false, autoImg:false};
 let S = {...DEF};
 try{ S = {...DEF, ...JSON.parse(localStorage.getItem('ms_settings')||'{}')}; }catch(e){}
 function saveS(){ localStorage.setItem('ms_settings', JSON.stringify(S)); }
@@ -244,14 +265,12 @@ function fmtTime(t){ const d=new Date(t); return d.toTimeString().slice(0,8); }
 /* ---------- 文字起こしストア ---------- */
 const transcript = [];      // {t, text}
 let interimText = '';
-let consumedUpTo = 0;       // モードAが消費済みの時刻
 function addTranscript(text){
   text = text.trim();
   if(!text) return;
   transcript.push({t:Date.now(), text});
   renderTicker();
 }
-function textSince(ts){ return transcript.filter(s=>s.t>ts).map(s=>s.text).join(' '); }
 function recentWindow(ms){
   const now = Date.now();
   return transcript.filter(s=>now-s.t<=ms).map(s=>s.text).join(' ') + ' ' + interimText;
@@ -361,21 +380,31 @@ function extractTerms(text){
   while((m = re.exec(text))){ if(!STOP.has(m[0])) out.push(m[0]); }
   return out;
 }
-function analyze(text){
+function analyze(text, avoid){
   const freq = {};
   extractTerms(text).forEach(w => freq[w] = (freq[w]||0)+1);
   const keywords = Object.entries(freq)
     .sort((a,b)=> b[1]-a[1] || b[0].length-a[0].length)
     .slice(0,4).map(e=>e[0]);
-  const sentences = text.split(/[。!?！？\n]+/).map(s=>s.trim()).filter(s=>s.length>=8);
-  let best = sentences[sentences.length-1] || text.trim(), bestScore = -1;
-  sentences.forEach(s=>{
-    let sc = Math.min(s.length,40)/40;
+  // 音声認識は句読点なしの長文になりがちなので、空白(認識の確定単位)や読点でも分割する
+  let sentences = text.split(/[。!?！？\n]+/).map(s=>s.trim()).filter(s=>s.length>=8);
+  if(sentences.length <= 1){
+    const parts = text.split(/\s+/).map(s=>s.trim()).filter(s=>s.length>=8);
+    if(parts.length >= 2) sentences = parts;
+    else if(text.trim().length > 70)
+      sentences = text.split(/[、,]+/).map(s=>s.trim()).filter(s=>s.length>=8);
+  }
+  let best = '', bestScore = -1;
+  sentences.forEach((s,idx)=>{
+    if(avoid && avoid.has(s)) return;               // 表示済みの文は選ばない
+    let sc = Math.min(s.length,40)/40 + idx*0.15;   // 新しい発話を優先
     keywords.forEach((k,i)=>{ if(s.includes(k)) sc += (4-i); });
     if(sc > bestScore){ bestScore=sc; best=s; }
   });
+  if(!best && !avoid) best = sentences[sentences.length-1] || text.trim();
+  const raw = best;
   if(best.length > 70) best = best.slice(0,68)+'…';
-  return {keywords, sentence: best};
+  return {keywords, sentence: best, raw};
 }
 
 /* ---------- AI要点抽出(Claude Haiku・任意) ---------- */
@@ -416,17 +445,27 @@ const THEMES = [
 ];
 const history = [];   // {type, at, ...}
 let pinned = false, lastSlideAt = 0, themeIdx = 0;
+let viewIdx = -1;     // -1 = 最新(ライブ)。0以上 = 履歴を閲覧中(自動切替は一時停止)
 
 function showSlide(slide){
   slide.at = Date.now();
   history.push(slide);
   lastSlideAt = slide.at;
+  viewIdx = -1;               // 新しいスライドは常にライブ表示に戻す
+  renderStage(slide);
+  renderMatList();
+  setStat();
+  updateNav();
+}
+
+function renderStage(slide){
   const stage = $('stage');
   stage.querySelectorAll('.slide').forEach(el=>el.remove());
   const el = document.createElement('div');
   el.className = 'slide';
   if(slide.type === 'text'){
-    const th = THEMES[themeIdx++ % THEMES.length];
+    if(slide.theme === undefined) slide.theme = themeIdx++ % THEMES.length;
+    const th = THEMES[slide.theme];
     el.style.background = th.bg;
     const len = (slide.sentence||'').length;
     const fs = len<=16 ? 'clamp(34px,6.5vw,88px)' : len<=34 ? 'clamp(26px,4.8vw,64px)' : 'clamp(20px,3.4vw,44px)';
@@ -454,8 +493,34 @@ function showSlide(slide){
        <div class="cap">📁 資料 から画像・PDFを読み込むと、関連ワードで自動表示(モードB)</div>`;
   }
   stage.insertBefore(el, $('pinBadge'));
-  renderMatList();
-  setStat();
+}
+
+/* ---------- スライド履歴の前後ナビ ---------- */
+function updateNav(){
+  const n = history.length;
+  $('navPos').textContent = viewIdx < 0 ? `${n}` : `${viewIdx+1}/${n}`;
+  $('liveBtn').style.display = viewIdx < 0 ? 'none' : 'inline-block';
+}
+function navPrev(){
+  if(!history.length) return;
+  const i = viewIdx < 0 ? history.length - 2 : viewIdx - 1;
+  if(i < 0) return;
+  viewIdx = i;
+  renderStage(history[i]);
+  updateNav();
+}
+function navNext(){
+  if(viewIdx < 0) return;
+  const i = viewIdx + 1;
+  if(i >= history.length - 1) return navLive();
+  viewIdx = i;
+  renderStage(history[i]);
+  updateNav();
+}
+function navLive(){
+  viewIdx = -1;
+  if(history.length) renderStage(history[history.length-1]);
+  updateNav();
 }
 
 /* ---------- モードB: 資料ライブラリ ---------- */
@@ -644,13 +709,13 @@ async function aiTagAll(){
 
 /* ---------- AI画像生成(任意) ---------- */
 let lastImageGen = 0;
-async function genImage(){
-  if(!S.openaiKey){ toast('AI画像生成には設定でOpenAI APIキーを入力してください'); return; }
+async function genImage(auto){
+  if(!S.openaiKey){ if(!auto) toast('AI画像生成には設定でOpenAI APIキーを入力してください'); return; }
   const wait = 60000 - (Date.now()-lastImageGen);
-  if(wait > 0){ toast(`画像生成は60秒間隔です(あと${Math.ceil(wait/1000)}秒)`); return; }
+  if(wait > 0){ if(!auto) toast(`画像生成は60秒間隔です(あと${Math.ceil(wait/1000)}秒)`); return; }
   const topic = recentWindow(60000).trim() ||
     (history.filter(h=>h.type==='text').slice(-1)[0]||{}).sentence || '';
-  if(!topic){ toast('まだ話題がありません(文字起こしを開始するかデモ入力してください)'); return; }
+  if(!topic){ if(!auto) toast('まだ話題がありません(文字起こしを開始するかデモ入力してください)'); return; }
   lastImageGen = Date.now();
   toast('🎨 画像を生成中…(数秒〜数十秒)');
   const prompt = `会議の話題「${topic.slice(0,300)}」を象徴する、シンプルでモダンなフラットデザインのイラスト。文字・ロゴは入れない。落ち着いた青系の配色。`;
@@ -667,11 +732,68 @@ async function genImage(){
     const d = j.data && j.data[0];
     const src = d.b64_json ? 'data:image/png;base64,'+d.b64_json : d.url;
     showSlide({type:'image', src, caption: topic.slice(0,60)});
-  }catch(e){ lastImageGen = 0; toast('画像生成失敗: '+e.message); }
+  }catch(e){
+    lastImageGen = 0;
+    toast('画像生成失敗: '+e.message+' — OpenAIキーに画像生成(Images API)の権限と残高があるかご確認ください');
+  }
 }
 
-/* ---------- 自動切替パイプライン ---------- */
+/* ---------- 議事録サマリー生成 ---------- */
+async function genMinutes(){
+  if(!transcript.length){ toast('文字起こしがまだありません'); return; }
+  if(!S.anthropicKey && !S.openaiKey){ toast('議事録生成には設定でAPIキー(Anthropic または OpenAI)を入力してください'); return; }
+  toast('📝 議事録を生成中…(数秒〜十数秒)');
+  const text = transcript.map(s=>`[${fmtTime(s.t)}] ${s.text}`).join('\n').slice(-24000);
+  const ask =
+`次の会議の文字起こしから、Markdown形式の議事録を日本語で作成してください。
+構成: # 議事録 / ## 会議概要(2〜3行) / ## 主な論点(箇条書き) / ## 決定事項 / ## ToDo(内容から読み取れる場合のみ)。
+文字起こしに含まれない情報は創作しないでください。
+
+文字起こし:
+${text}`;
+  try{
+    let out = '';
+    if(S.anthropicKey){
+      const r = await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'content-type':'application/json','x-api-key':S.anthropicKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({model:'claude-haiku-4-5-20251001', max_tokens:1500,
+          messages:[{role:'user', content: ask}]})});
+      const j = await r.json();
+      if(j.error) throw new Error(j.error.message);
+      out = (j.content && j.content[0] && j.content[0].text) || '';
+    } else {
+      const r = await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+S.openaiKey,'Content-Type':'application/json'},
+        body: JSON.stringify({model:'gpt-4o-mini', max_tokens:1500,
+          messages:[{role:'user', content: ask}]})});
+      const j = await r.json();
+      if(j.error) throw new Error(j.error.message);
+      out = (j.choices && j.choices[0] && j.choices[0].message.content) || '';
+    }
+    if(!out.trim()) throw new Error('空の応答');
+    $('minText').value = out.trim();
+    $('minOvl').style.display = 'flex';
+  }catch(e){ toast('議事録生成失敗: '+e.message); }
+}
+
+/* ---------- 自動切替パイプライン ----------
+   直近の発話ウィンドウ(確定+認識途中のテキスト)から生成する方式。
+   句読点のない連続発話でも、設定間隔ごとに確実にスライドが切り替わる。
+   直前とほぼ同じ内容(話が進んでいない)のときだけ切替を見送る。 */
 let pipelining = false;
+let lastSlideSentence = '', lastSlideKeywords = [];
+let lastPipelineText = '';
+const recentShown = new Map();   // 表示済みの文(原文) -> 表示時刻
+
+function looksSame(a){
+  if(a.sentence && a.sentence === lastSlideSentence) return true;
+  if(a.keywords.length && a.keywords.join('|') === lastSlideKeywords.join('|')
+     && Math.abs((a.sentence||'').length - lastSlideSentence.length) < 6) return true;
+  return false;
+}
+
 async function pipeline(force){
   if(pipelining) return;
   pipelining = true;
@@ -683,23 +805,43 @@ async function pipeline(force){
     }
     // モードA: テキストスライド生成
     if(S.mode !== 'B'){
-      const text = textSince(consumedUpTo);
-      if(text.replace(/\s/g,'').length < (force?4:12)) return;
-      consumedUpTo = Date.now();
+      const windowMs = Math.max(20000, S.interval * 3000);
+      const text = recentWindow(windowMs).trim();
+      if(text.replace(/\s/g,'').length < (force?4:10)) return;
+      if(!force && text === lastPipelineText) return;      // 新しい発話がない
+      lastPipelineText = text;
+      const now = Date.now();
+      for(const [s,t] of recentShown) if(now - t > windowMs * 2) recentShown.delete(s);
       let a;
       if(S.useLLM && S.anthropicKey){
-        try{ a = await llmAnalyze(text); }catch(e){ console.warn('llm',e); a = analyze(text); }
-      } else a = analyze(text);
-      if(!a.sentence && !a.keywords.length) return;
-      showSlide({type:'text', ...a});
+        try{ a = await llmAnalyze(text); }catch(e){ console.warn('llm',e); a = analyze(text, recentShown); }
+      } else a = analyze(text, force ? null : recentShown);
+      if(!a.sentence) return;                              // 未表示の新しい文がない
+      if(!force && looksSame(a)) return;
+      maybeAutoImage(a);
+      lastSlideSentence = a.sentence || '';
+      lastSlideKeywords = a.keywords || [];
+      if(a.raw) recentShown.set(a.raw, now);
+      showSlide({type:'text', sentence:a.sentence, keywords:a.keywords});
     }
   } finally { pipelining = false; }
 }
 setInterval(()=>{
   if(pinned) return;
+  if(viewIdx >= 0) return;                                // 履歴閲覧中は自動切替を止める
   if(Date.now() - lastSlideAt < S.interval*1000) return;
   pipeline(false);
 }, 1000);
+
+/* 話題転換の自動検知: キーワードが直前スライドと全入れ替わりになったら画像を自動生成 */
+function maybeAutoImage(a){
+  if(!S.autoImg || !S.openaiKey) return;
+  if(Date.now() - lastImageGen < 60000) return;
+  if(!lastSlideKeywords.length || !a.keywords.length) return;
+  const prev = new Set(lastSlideKeywords);
+  if(a.keywords.some(k => prev.has(k))) return;           // 1つでも重なれば同じ話題とみなす
+  genImage(true);
+}
 
 /* ---------- エクスポート ---------- */
 function exportTxt(){
@@ -718,15 +860,27 @@ function exportJson(){
 }
 function clearSession(){
   transcript.length = 0; history.length = 0; interimText='';
-  consumedUpTo = Date.now(); lastSlideAt = 0; themeIdx = 0;
+  lastSlideAt = 0; themeIdx = 0; viewIdx = -1;
+  lastSlideSentence = ''; lastSlideKeywords = [];
+  lastPipelineText = ''; recentShown.clear();
   renderTicker(); showSlide({type:'welcome'}); lastSlideAt = 0;
   toast('セッションをクリアしました');
 }
 
 /* ---------- UI 配線 ---------- */
 $('micBtn').onclick = ()=> listening ? stopListening() : startListening();
-$('nowBtn').onclick = ()=>{ lastSlideAt = 0; pipeline(true); };
-$('imgBtn').onclick = genImage;
+$('nowBtn').onclick = ()=>{ navLive(); lastSlideAt = 0; pipeline(true); };
+$('imgBtn').onclick = ()=> genImage(false);
+$('minBtn').onclick = genMinutes;
+$('prevBtn').onclick = navPrev;
+$('nextBtn').onclick = navNext;
+$('liveBtn').onclick = navLive;
+$('minClose').onclick = ()=> $('minOvl').style.display = 'none';
+$('minDl').onclick = ()=>{
+  if(!$('minText').value.trim()) return;
+  download(`議事録-${new Date().toISOString().slice(0,10)}.md`, $('minText').value, 'text/markdown');
+};
+$('minOvl').onclick = e =>{ if(e.target===$('minOvl')) $('minOvl').style.display='none'; };
 $('drawerBtn').onclick = ()=> $('drawer').classList.toggle('closed');
 $('pickDir').onclick = ()=> $('dirIn').click();
 $('pickFiles').onclick = ()=> $('filesIn').click();
@@ -758,6 +912,7 @@ $('setBtn').onclick = ()=>{
   $('kAnthropic').value = S.anthropicKey;
   $('intRange').value = S.interval; $('intLabel').textContent = S.interval;
   $('useLLM').checked = S.useLLM;
+  $('autoImg').checked = S.autoImg;
   $('ovl').classList.add('open');
 };
 $('closeModal').onclick = ()=>{
@@ -768,6 +923,7 @@ $('closeModal').onclick = ()=>{
   S.anthropicKey = $('kAnthropic').value.trim();
   S.interval = +$('intRange').value;
   S.useLLM = $('useLLM').checked;
+  S.autoImg = $('autoImg').checked;
   saveS(); setStat();
   $('ovl').classList.remove('open');
   if(wasListening){ stopListening(); startListening(); }  // エンジン切替を反映
@@ -782,7 +938,6 @@ $('clearBtn').onclick = clearSession;
 $('modeSel').value = S.mode;
 showSlide({type:'welcome'});
 lastSlideAt = 0;                 // 最初の発話で即スライド化できるように
-consumedUpTo = Date.now();
 renderMatList();
 setStat();
 window.MS = {materials, transcript, history, addTranscript, addFiles, pipeline, get settings(){return S}};  // デバッグ・拡張用フック
