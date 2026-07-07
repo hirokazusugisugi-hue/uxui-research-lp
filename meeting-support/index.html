@@ -820,8 +820,9 @@ async function genImage(auto){
     return r.json();
   }
   try{
-    let j = await call({model:'gpt-image-1', prompt, size:'1536x1024'});
-    if(j.error) j = await call({model:'dall-e-3', prompt, size:'1792x1024', response_format:'b64_json'});
+    // quality:'medium' を明示(既定のautoはhigh相当になり1枚20円超のことがあるため)
+    let j = await call({model:'gpt-image-1', prompt, size:'1536x1024', quality:'medium'});
+    if(j.error) j = await call({model:'gpt-image-1-mini', prompt, size:'1024x1024'});  // 低コスト予備(DALL-E3はAPI廃止済み)
     if(j.error) throw new Error(j.error.message);
     const d = j.data && j.data[0];
     const src = d.b64_json ? 'data:image/png;base64,'+d.b64_json : d.url;
