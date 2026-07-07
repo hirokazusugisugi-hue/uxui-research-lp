@@ -215,7 +215,7 @@ header h1 span{color:#A5B4FC; font-family:'DM Sans'}
 
     <h3>スライド自動切替</h3>
     <div class="frow"><label>切替間隔: <b id="intLabel">7</b> 秒</label><input type="range" id="intRange" min="5" max="12" step="1"></div>
-    <div class="frow"><label><input type="checkbox" id="useLLM"> 要点まとめにAIを使う(Anthropic/OpenAIキーのどちらかが必要・高品質)</label></div>
+    <div class="frow"><label><input type="checkbox" id="useLLM"> 要点まとめにAIを使う(前後の文脈を考慮した高品質な要約・Anthropic/OpenAIキーのどちらかが必要)</label></div>
     <div class="frow"><label><input type="checkbox" id="autoImg"> 話題が変わったらAI画像を自動生成(OpenAIキー・最短60秒間隔)</label></div>
     <p class="note">チェックがオフでもローカルのキーワード抽出で動作します(無料・遅延なし)。画像の自動生成は話題のキーワードが入れ替わったタイミングで実行されます。</p>
 
@@ -387,6 +387,16 @@ function extractTerms(text){
   while((m = re.exec(text))){ if(!STOP.has(m[0])) out.push(m[0]); }
   return out;
 }
+/* フィラー・相槌(えー、あの、はいそうですね…)を除去する */
+const FILLER_RE = /^(?:えー*っ?と?ー?|えっとー?|ええと|あー+|あのー?|そのー?|まあ|まぁ|なんか|うーん|ん+|はい|ええ|そうですね|わかりました|なるほど|でですね|ですので|それでは|じゃあ|では|やっぱりですね|ちなみに)[、,\s]*/;
+const FILLER_WORD = /^(?:えー*っ?と?ー?|えっとー?|ええと|あー+|あのー?|そのー?|まあ|まぁ|なんか|うーん|ん+|はい|ええ|そうですね|そうです|わかりました|なるほど|お願いします|よろしくお願いします|ありがとうございます)$/;
+function cleanSentence(s){
+  s = s.split(/\s+/).filter(t => !FILLER_WORD.test(t)).join(' ');   // 相槌だけの断片を除去
+  let prev;
+  do{ prev = s.trim(); s = prev.replace(FILLER_RE, ''); }while(s !== prev);
+  return s.trim();
+}
+
 function analyze(text, avoid){
   const freq = {};
   extractTerms(text).forEach(w => freq[w] = (freq[w]||0)+1);
@@ -402,14 +412,21 @@ function analyze(text, avoid){
       sentences = text.split(/[、,]+/).map(s=>s.trim()).filter(s=>s.length>=8);
   }
   if(!sentences.length && text.trim().length >= 4) sentences = [text.trim()];
+  sentences = sentences.map(cleanSentence).filter(s=>s.length>=8);
   // 各文をスコアリングし、未表示のものから要点2〜3個を選ぶ
-  const scored = [];
+  let scored = [];
   sentences.forEach((s,idx)=>{
     if(avoid && avoid.has(s)) return;               // 表示済みの文は選ばない
+    const hits = keywords.filter(k=>s.includes(k)).length;
+    if(!hits && s.length < 12) return;              // キーワードを含まない短文(相槌・唐突な断片)は除外
     let sc = Math.min(s.length,40)/40 + idx*0.15;   // 新しい発話を優先
     keywords.forEach((k,i)=>{ if(s.includes(k)) sc += (4-i); });
-    scored.push([sc, s]);
+    lastSlideKeywords.forEach(k=>{ if(k && s.includes(k)) sc += 0.6; });  // 直前の話題と繋がる文を優先
+    scored.push([sc, s, hits]);
   });
+  // 本筋(キーワードを含む文)が2つ以上あれば、文脈から浮いた文(キーワード0)は採用しない
+  const withHits = scored.filter(x => x[2] > 0);
+  if(withHits.length >= 2) scored = withHits;
   scored.sort((a,b)=> b[0]-a[0]);
   const picked = [];
   for(const [,s] of scored){
@@ -449,15 +466,33 @@ function emojiFor(keywords){
   return out.slice(0,3);
 }
 
-/* ---------- AI要点まとめ(Anthropic / OpenAI どちらかのキーで動作・任意) ---------- */
+/* ---------- AI要点まとめ(Anthropic / OpenAI どちらかのキーで動作・任意)
+   直近スライドの流れ+直近3分の発話を背景文脈として渡し、文脈を踏まえた要約を作る ---------- */
 async function llmAnalyze(text){
+  const flow = history.filter(h => h.type==='text' && h.headline).slice(-5)
+    .map(h => `・${h.headline}: ${(h.bullets||[]).join(' / ')}`).join('\n');
+  const nowT = Date.now();
+  const context = transcript.filter(s => nowT - s.t <= 180000)
+    .map(s => s.text).join(' ').slice(-2000);
   const prompt =
-`あなたは会議のプレゼンスライドを作る編集者です。次の発話ログを要約し、スライド1枚分をJSONのみで返してください。
-{"headline":"見出し(15字以内・体言止め)","bullets":["要点(各30字以内)を2〜3個"],"keywords":["キーワード最大4個"]}
-発話に含まれない情報は創作しないこと。
+`あなたは会議のプレゼンスライドをリアルタイムで作る編集者です。
 
-発話:
-${text.slice(0,1200)}`;
+# これまでのスライド(話の流れ)
+${flow || '(まだなし)'}
+
+# 直近3分の発話(背景文脈)
+${context || '(なし)'}
+
+# 今スライド化する発話(直近)
+${text.slice(0,1200)}
+
+前後の文脈を踏まえて「今の話題」が聴衆に一目で伝わるスライド1枚分を、JSONのみで返してください。
+{"headline":"見出し(15字以内・体言止め)","bullets":["要点(各30字以内)を2〜3個"],"keywords":["キーワード最大4個"]}
+ルール:
+- フィラー(えー、あの等)・言い間違い・相槌・文脈から浮いた脱線断片は無視する
+- 文脈から明らかな主語・目的語は補ってよいが、発話にない事実の創作は禁止
+- これまでのスライドと同じ内容の繰り返しは避け、新しく話された内容を中心にまとめる
+- 話が前のスライドの続きなら、つながりが分かる見出しにする`;
   let t = '';
   if(S.anthropicKey){
     const r = await fetch('https://api.anthropic.com/v1/messages', {
